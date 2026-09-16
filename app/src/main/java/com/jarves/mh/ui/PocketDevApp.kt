@@ -2271,7 +2271,7 @@ private fun ProjectsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Repositories", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
@@ -2526,7 +2526,7 @@ private fun ProjectCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = if (isExpanded) Icons.Default.FolderOpen else Icons.Default.Folder,
+                    imageVector = if (isExpanded) Icons.Default.Folder else Icons.Default.Folder,
                     contentDescription = null,
                     tint = PocketOrange,
                     modifier = Modifier.size(20.dp)
@@ -2574,7 +2574,7 @@ private fun ProjectCard(
             }
 
             // SESSIONS / CHAT LIST (INDENTED)
-            AnimatedVisibility(visible = isExpanded) {
+            if (isExpanded) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2731,6 +2731,321 @@ private fun ProjectCard(
 
 
 }
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+private fun WorkspaceScreen(
+    state: AppUiState,
+    onSelectThinking: (String) -> Unit = {},
+    onSelectCustomModel: (com.jarves.mh.model.CustomProviderConfig, com.jarves.mh.model.CustomModelItem) -> Unit = { _, _ -> },
+    onBack: () -> Unit,
+    onSend: (String) -> Unit,
+    onStop: () -> Unit,
+    onApproval: (Boolean) -> Unit,
+    onRefreshFiles: () -> Unit,
+    onOpenFile: (WorkspaceEntry) -> Unit,
+    onCloseFile: () -> Unit,
+    onUndoChanges: () -> Unit,
+    onKeepChanges: () -> Unit,
+    onUndoFileChange: (String) -> Unit,
+    onKeepFileChange: (String) -> Unit,
+    onCreateChat: () -> Unit,
+    onSwitchChat: (String) -> Unit,
+    onTerminalRun: (String) -> Unit,
+    onTerminalInput: (String) -> Unit,
+    onTerminalInterrupt: () -> Unit,
+    onTerminalPrepare: (String) -> Unit,
+    onTerminalDraftConsumed: () -> Unit,
+    onTerminalOpened: () -> Unit,
+    onTerminalStop: () -> Unit,
+    onTerminalClear: () -> Unit,
+    onTerminalConfirm: () -> Unit,
+    onTerminalCancel: () -> Unit,
+    onUseSuggestedProjectRoot: () -> Unit,
+    onExportProject: (Uri) -> Unit,
+    onAddAttachments: (List<Uri>) -> Unit,
+    onRemoveAttachment: (String) -> Unit,
+    onOpenAttachment: (ChatAttachment) -> Unit,
+    onBuildAndRunAndroid: () -> Unit,
+    onSelectModel: (String) -> Unit = {},
+) {
+    BackHandler(onBack = onBack)
+    val context = LocalContext.current
+    val isAndroidProject = state.androidProjectDetected
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val exportProjectLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip"),
+        onResult = { uri -> if (uri != null) onExportProject(uri) },
+    )
+    val attachmentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments(),
+        onResult = onAddAttachments,
+    )
+    val unknownAppsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || context.packageManager.canRequestPackageInstalls()) {
+                onBuildAndRunAndroid()
+            } else {
+                Toast.makeText(context, "Allow app installs to run Android projects", Toast.LENGTH_LONG).show()
+            }
+        },
+    )
+    val chatListState = rememberLazyListState()
+    var userScrolledUp by rememberSaveable { mutableStateOf(false) }
+
+    val chatItemCount = state.messages.size +
+        (if (state.liveProcess.isNotEmpty() || state.liveThinking) 1 else 0) +
+        (if (state.pendingApproval != null) 1 else 0)
+
+    LaunchedEffect(state.activeChatId) {
+        userScrolledUp = false
+        if (chatItemCount > 0) chatListState.scrollToItem(chatItemCount - 1)
+    }
+
+    // When the user actively scrolls/touches the screen, detect if they scrolled up to read thinking/messages.
+    LaunchedEffect(chatListState.isScrollInProgress) {
+        if (chatListState.isScrollInProgress) {
+            if (chatListState.canScrollForward) {
+                userScrolledUp = true
+            }
+        } else {
+            // If user scrolled back down to the very bottom, re-enable follow mode
+            if (!chatListState.canScrollForward) {
+                userScrolledUp = false
+            }
+        }
+    }
+
+    // Follow new tokens/updates only when user is at the bottom and has not scrolled up to read.
+    LaunchedEffect(
+        state.messages.size,
+        state.messages.lastOrNull()?.text?.length,
+        state.liveProcess.size,
+        state.liveProcess.lastOrNull()?.detail,
+        state.pendingApproval,
+    ) {
+        if (!state.isRunning || chatItemCount <= 0 || userScrolledUp || chatListState.isScrollInProgress) return@LaunchedEffect
+        if (!chatListState.canScrollForward) {
+            chatListState.scrollToItem(chatItemCount - 1)
+        }
+    }
+
+    var selectedTab by rememberSaveable { mutableStateOf(WorkspaceTab.CHAT) }
+    var showChats by rememberSaveable { mutableStateOf(false) }
+    val activeChat = state.projectChats.firstOrNull { it.id == state.activeChatId }
+
+    // If a file is open, show the FileViewerScreen on top
+    if (state.openedFilePath != null) {
+        BackHandler(onBack = {
+            onCloseFile()
+            selectedTab = WorkspaceTab.FILES
+        })
+        FileViewerScreen(
+            filePath = state.openedFilePath,
+            content = state.openedFileContent,
+            loading = state.fileContentLoading,
+            onClose = {
+                onCloseFile()
+                selectedTab = WorkspaceTab.FILES
+            },
+        )
+        return
+    }
+
+    if (showChats) {
+        ChatSwitcherDialog(
+            chats = state.projectChats,
+            activeChatId = state.activeChatId,
+            switchingEnabled = !state.isRunning,
+            onDismiss = { showChats = false },
+            onCreate = {
+                onCreateChat()
+                showChats = false
+                selectedTab = WorkspaceTab.CHAT
+            },
+            onSwitch = { chatId ->
+                onSwitchChat(chatId)
+                showChats = false
+                selectedTab = WorkspaceTab.CHAT
+            },
+        )
+    }
+    state.pendingTerminalCommand?.let { command ->
+        AlertDialog(
+            onDismissRequest = onTerminalCancel,
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Run potentially destructive command?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("This command can delete files, rewrite Git history, or change the project significantly.")
+                    Surface(color = Color(0xFF14171E), shape = RoundedCornerShape(8.dp)) {
+                        Text(
+                            command,
+                            Modifier.fillMaxWidth().padding(10.dp),
+                            fontFamily = FontFamily.Monospace,
+                            color = Color(0xFFE2E8F0),
+                        )
+                    }
+                }
+            },
+            confirmButton = { Button(onClick = onTerminalConfirm) { Text("Run anyway") } },
+            dismissButton = { TextButton(onClick = onTerminalCancel) { Text("Cancel") } },
+        )
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column(Modifier.fillMaxWidth()) {
+                        Text(
+                            state.activeProject?.name.orEmpty(),
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.combinedClickable(
+                                onClick = {},
+                                onLongClick = {
+                                    Toast.makeText(context, state.activeProject?.name.orEmpty(), Toast.LENGTH_LONG).show()
+                                },
+                            ),
+                        )
+                        Text(
+                            "${activeChat?.title ?: "Chat"} · ${state.provider.kind.title}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
+                },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Projects") } },
+                actions = {
+                    if (isAndroidProject) {
+                        IconButton(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                                    !context.packageManager.canRequestPackageInstalls()) {
+                                    unknownAppsLauncher.launch(
+                                        Intent(
+                                            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                            Uri.parse("package:${context.packageName}"),
+                                        ),
+                                    )
+                                } else {
+                                    onBuildAndRunAndroid()
+                                }
+                            },
+                            enabled = !state.androidBuildRunning && !state.isRunning && !state.projectTerminalRunning,
+                        ) {
+                            if (state.androidBuildRunning) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            else Icon(Icons.Default.PlayArrow, "Build and run Android app")
+                        }
+                    }
+                    IconButton(onClick = { showChats = true }) { Icon(Icons.Default.History, "Project chats") }
+                    if (state.isRunning) CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp), strokeWidth = 2.dp)
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+            )
+        },
+        bottomBar = {
+            if (!keyboardVisible) NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                WorkspaceTab.entries.filter { it != WorkspaceTab.CHANGES }.forEach { tab ->
+                    NavigationBarItem(
+                        selected = selectedTab == tab,
+                        onClick = {
+                            selectedTab = tab
+                            if (tab == WorkspaceTab.FILES) onRefreshFiles()
+                            if (tab == WorkspaceTab.TERMINAL) onTerminalOpened()
+                        },
+                        icon = { Icon(tab.icon, tab.label) },
+                        label = { Text(tab.label, fontSize = 10.sp) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        ),
+                    )
+                }
+            }
+        },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when (selectedTab) {
+                WorkspaceTab.CHAT -> ChatTab(
+                    state.messages,
+                    state.pendingApproval,
+                    state.liveProcess,
+                    state.isRunning,
+                    onSend,
+                    onStop,
+                    onApproval,
+                    listState = chatListState,
+                    taskStartedAtMillis = state.workSegmentStartedAtMillis ?: state.taskStartedAtMillis,
+                    taskFinishedAtMillis = state.taskFinishedAtMillis,
+                    thinkingActive = state.liveThinking,
+                    pendingAttachments = state.pendingAttachments,
+                    onAttach = {
+                        attachmentLauncher.launch(arrayOf("image/*", "text/*", "application/json", "application/xml"))
+                    },
+                    onRemoveAttachment = onRemoveAttachment,
+                    onOpenAttachment = onOpenAttachment,
+                    onRunInTerminal = { command ->
+                        selectedTab = WorkspaceTab.TERMINAL
+                        onTerminalOpened()
+                        onTerminalPrepare(command)
+                    },
+                    currentProvider = state.provider,
+                    onSelectModel = onSelectModel,
+                    onSelectThinking = onSelectThinking,
+                    customProviders = state.customProviders,
+                    onSelectCustomModel = onSelectCustomModel,
+                )
+                WorkspaceTab.FILES -> FilesTab(
+                    files = state.workspaceFiles,
+                    loading = state.filesLoading,
+                    suggestedProjectRoot = state.suggestedProjectRoot,
+                    onRefresh = onRefreshFiles,
+                    onOpenFile = onOpenFile,
+                    onUseSuggestedProjectRoot = onUseSuggestedProjectRoot,
+                    onExport = {
+                        exportProjectLauncher.launch("${state.activeProject?.slug ?: "project"}.zip")
+                    },
+                )
+                WorkspaceTab.TERMINAL -> TerminalScreen(
+                    lines = state.projectTerminalLines,
+                    isRunning = state.projectTerminalRunning,
+                    onRun = onTerminalRun,
+                    onInput = onTerminalInput,
+                    onInterrupt = onTerminalInterrupt,
+                    onClear = onTerminalClear,
+                    onToggleTheme = {},
+                    themeMode = state.themeMode,
+                    title = "Project Terminal",
+                    subtitle = "${state.projectTerminalCwd} · Ubuntu PRoot",
+                    liveOutput = state.projectTerminalLiveOutput,
+                    currentCommand = state.projectTerminalCommand,
+                    commandDraft = state.projectTerminalDraft,
+                    onCommandDraftConsumed = onTerminalDraftConsumed,
+                    promptPath = state.projectTerminalCwd,
+                    onStop = onTerminalStop,
+                    showThemeAction = false,
+                    showQuickCommands = false,
+                    compactHeader = true,
+                )
+                WorkspaceTab.CHANGES -> ChangesTab(
+                    state.changes,
+                    onUndoChanges,
+                    onKeepChanges,
+                    onUndoFileChange,
+                    onKeepFileChange,
+                )
+                WorkspaceTab.PREVIEW -> PreviewTab(state.previewReady, state.previewUrl)
+            }
+        }
+    }
+}
+
+@Composable
 
 @Composable
 private fun ChatSwitcherDialog(
@@ -3411,7 +3726,7 @@ private fun ChatTab(
                                             }
                                         }
 
-                                        VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                        Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)))
 
                                         // COLUMN 2: MODELS LIST (RIGHT SUBMENU)
                                         LazyColumn(
@@ -3508,7 +3823,7 @@ private fun ChatTab(
                     }
                 }
 
-                val canSend =val canSend = prompt.isNotBlank() || pendingAttachments.isNotEmpty()
+                val canSend = prompt.isNotBlank() || pendingAttachments.isNotEmpty()
 
                 Surface(
                     shape = RoundedCornerShape(26.dp),
