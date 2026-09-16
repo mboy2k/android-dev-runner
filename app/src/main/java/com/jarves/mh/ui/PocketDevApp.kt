@@ -2155,6 +2155,13 @@ private fun ProjectsScreen(
     onPing: () -> Unit,
     onToggleTheme: () -> Unit,
     onInstallUpdate: () -> Unit,
+    onOpenChat: (Project, String) -> Unit = { p, _ -> onOpen(p) },
+    onPinChat: (String, String, Boolean) -> Unit = { _, _, _ -> },
+    onArchiveChat: (String, String) -> Unit = { _, _ -> },
+    onRestoreChat: (String, String) -> Unit = { _, _ -> },
+    onDeleteChatPermanently: (String, String) -> Unit = { _, _ -> },
+    onRenameChat: (String, String, String) -> Unit = { _, _, _ -> },
+    onCreateChatForProject: (String) -> Unit = {},
 ) {
     var showCreate by rememberSaveable { mutableStateOf(false) }
     var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
@@ -2257,7 +2264,20 @@ private fun ProjectsScreen(
                     }
                 }
             }
-            item { Text("Your projects", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Repositories", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Text("${projects.size} projects", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             if (projects.isEmpty()) {
                 item {
                     Card(
@@ -2460,376 +2480,256 @@ private fun ApiStatusChip(state: AppUiState, onSettings: () -> Unit, onPing: () 
 
 
 @Composable
-private fun ProjectCard(project: Project, onOpen: () -> Unit, onRename: (String) -> Unit, onDelete: () -> Unit) {
+private fun ProjectCard(
+    project: Project,
+    onOpen: () -> Unit,
+    onRename: (String) -> Unit,
+    onDelete: () -> Unit,
+    onOpenChat: (Project, String) -> Unit = { p, _ -> },
+    onPinChat: (String, String, Boolean) -> Unit = { _, _, _ -> },
+    onArchiveChat: (String, String) -> Unit = { _, _ -> },
+    onRestoreChat: (String, String) -> Unit = { _, _ -> },
+    onDeleteChatPermanently: (String, String) -> Unit = { _, _ -> },
+    onRenameChat: (String, String, String) -> Unit = { _, _, _ -> },
+    onCreateChatForProject: (String) -> Unit = {},
+) {
+    val context = LocalContext.current
+    val prefs = remember { com.jarves.mh.data.AppPreferences(context) }
+    var isExpanded by rememberSaveable(project.id) { mutableStateOf(true) }
     var menuOpen by rememberSaveable(project.id) { mutableStateOf(false) }
     var showRename by rememberSaveable(project.id) { mutableStateOf(false) }
     var showDelete by rememberSaveable(project.id) { mutableStateOf(false) }
+    var showArchivedDialog by rememberSaveable(project.id) { mutableStateOf(false) }
     var renameText by rememberSaveable(project.id) { mutableStateOf(project.name) }
-    Card(Modifier.fillMaxWidth().clickable(onClick = onOpen), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-                Icon(Icons.Default.Folder, null, Modifier.padding(13.dp), tint = PocketOrange)
-            }
-            Spacer(Modifier.width(13.dp))
-            Column(Modifier.weight(1f)) {
-                Text(project.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    if (project.kind == ProjectKind.QUICK_PROJECT) "Quick project" else project.description,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                )
-                Text("/workspace/${project.slug}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                Text("${project.language} · ${project.formattedUpdatedAt}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
-            }
-            Box {
-                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, "Project options") }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Rename project") },
-                        leadingIcon = { Icon(Icons.Default.Edit, null) },
-                        onClick = { menuOpen = false; renameText = project.name; showRename = true },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete project") },
-                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                        onClick = { menuOpen = false; showDelete = true },
-                    )
-                }
-            }
-        }
-    }
-    if (showRename) {
-        AlertDialog(
-            onDismissRequest = { showRename = false },
-            title = { Text("Rename project") },
-            text = { OutlinedTextField(renameText, { renameText = it }, label = { Text("Project name") }, singleLine = true) },
-            confirmButton = { TextButton(onClick = { onRename(renameText); showRename = false }, enabled = renameText.isNotBlank()) { Text("Save") } },
-            dismissButton = { TextButton(onClick = { showRename = false }) { Text("Cancel") } },
-        )
-    }
-    if (showDelete) {
-        AlertDialog(
-            onDismissRequest = { showDelete = false },
-            title = { Text("Delete this project?") },
-            text = { Text("Its chats, files, attachments, changes, and terminal history will be permanently removed.") },
-            confirmButton = { TextButton(onClick = { onDelete(); showDelete = false }) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancel") } },
-        )
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
-@Composable
-private fun WorkspaceScreen(
-    state: AppUiState,
-    onSelectThinking: (String) -> Unit = {},
-    onSelectCustomModel: (com.jarves.mh.model.CustomProviderConfig, com.jarves.mh.model.CustomModelItem) -> Unit = { _, _ -> },
-    onBack: () -> Unit,
-    onSend: (String) -> Unit,
-    onStop: () -> Unit,
-    onApproval: (Boolean) -> Unit,
-    onRefreshFiles: () -> Unit,
-    onOpenFile: (WorkspaceEntry) -> Unit,
-    onCloseFile: () -> Unit,
-    onUndoChanges: () -> Unit,
-    onKeepChanges: () -> Unit,
-    onUndoFileChange: (String) -> Unit,
-    onKeepFileChange: (String) -> Unit,
-    onCreateChat: () -> Unit,
-    onSwitchChat: (String) -> Unit,
-    onTerminalRun: (String) -> Unit,
-    onTerminalInput: (String) -> Unit,
-    onTerminalInterrupt: () -> Unit,
-    onTerminalPrepare: (String) -> Unit,
-    onTerminalDraftConsumed: () -> Unit,
-    onTerminalOpened: () -> Unit,
-    onTerminalStop: () -> Unit,
-    onTerminalClear: () -> Unit,
-    onTerminalConfirm: () -> Unit,
-    onTerminalCancel: () -> Unit,
-    onUseSuggestedProjectRoot: () -> Unit,
-    onExportProject: (Uri) -> Unit,
-    onAddAttachments: (List<Uri>) -> Unit,
-    onRemoveAttachment: (String) -> Unit,
-    onOpenAttachment: (ChatAttachment) -> Unit,
-    onBuildAndRunAndroid: () -> Unit,
-    onSelectModel: (String) -> Unit = {},
-) {
-    BackHandler(onBack = onBack)
-    val context = LocalContext.current
-    val isAndroidProject = state.androidProjectDetected
-    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val exportProjectLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip"),
-        onResult = { uri -> if (uri != null) onExportProject(uri) },
-    )
-    val attachmentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments(),
-        onResult = onAddAttachments,
-    )
-    val unknownAppsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-        onResult = {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || context.packageManager.canRequestPackageInstalls()) {
-                onBuildAndRunAndroid()
-            } else {
-                Toast.makeText(context, "Allow app installs to run Android projects", Toast.LENGTH_LONG).show()
-            }
-        },
-    )
-    val chatListState = rememberLazyListState()
-    var userScrolledUp by rememberSaveable { mutableStateOf(false) }
+    // Chat rename dialog
+    var renamingChatId by remember { mutableStateOf<String?>(null) }
+    var renameChatText by remember { mutableStateOf("") }
 
-    val chatItemCount = state.messages.size +
-        (if (state.liveProcess.isNotEmpty() || state.liveThinking) 1 else 0) +
-        (if (state.pendingApproval != null) 1 else 0)
+    val allChats = remember(project.id, isExpanded) { prefs.loadProjectChats(project.id) }
+    val activeChats = allChats.filterNot { it.isArchived }
+    val archivedChats = allChats.filter { it.isArchived }
 
-    LaunchedEffect(state.activeChatId) {
-        userScrolledUp = false
-        if (chatItemCount > 0) chatListState.scrollToItem(chatItemCount - 1)
-    }
-
-    // When the user actively scrolls/touches the screen, detect if they scrolled up to read thinking/messages.
-    LaunchedEffect(chatListState.isScrollInProgress) {
-        if (chatListState.isScrollInProgress) {
-            if (chatListState.canScrollForward) {
-                userScrolledUp = true
-            }
-        } else {
-            // If user scrolled back down to the very bottom, re-enable follow mode
-            if (!chatListState.canScrollForward) {
-                userScrolledUp = false
-            }
-        }
-    }
-
-    // Follow new tokens/updates only when user is at the bottom and has not scrolled up to read.
-    LaunchedEffect(
-        state.messages.size,
-        state.messages.lastOrNull()?.text?.length,
-        state.liveProcess.size,
-        state.liveProcess.lastOrNull()?.detail,
-        state.pendingApproval,
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     ) {
-        if (!state.isRunning || chatItemCount <= 0 || userScrolledUp || chatListState.isScrollInProgress) return@LaunchedEffect
-        if (!chatListState.canScrollForward) {
-            chatListState.scrollToItem(chatItemCount - 1)
-        }
-    }
-
-    var selectedTab by rememberSaveable { mutableStateOf(WorkspaceTab.CHAT) }
-    var showChats by rememberSaveable { mutableStateOf(false) }
-    val activeChat = state.projectChats.firstOrNull { it.id == state.activeChatId }
-
-    // If a file is open, show the FileViewerScreen on top
-    if (state.openedFilePath != null) {
-        BackHandler(onBack = {
-            onCloseFile()
-            selectedTab = WorkspaceTab.FILES
-        })
-        FileViewerScreen(
-            filePath = state.openedFilePath,
-            content = state.openedFileContent,
-            loading = state.fileContentLoading,
-            onClose = {
-                onCloseFile()
-                selectedTab = WorkspaceTab.FILES
-            },
-        )
-        return
-    }
-
-    if (showChats) {
-        ChatSwitcherDialog(
-            chats = state.projectChats,
-            activeChatId = state.activeChatId,
-            switchingEnabled = !state.isRunning,
-            onDismiss = { showChats = false },
-            onCreate = {
-                onCreateChat()
-                showChats = false
-                selectedTab = WorkspaceTab.CHAT
-            },
-            onSwitch = { chatId ->
-                onSwitchChat(chatId)
-                showChats = false
-                selectedTab = WorkspaceTab.CHAT
-            },
-        )
-    }
-    state.pendingTerminalCommand?.let { command ->
-        AlertDialog(
-            onDismissRequest = onTerminalCancel,
-            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Run potentially destructive command?") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("This command can delete files, rewrite Git history, or change the project significantly.")
-                    Surface(color = Color(0xFF14171E), shape = RoundedCornerShape(8.dp)) {
-                        Text(
-                            command,
-                            Modifier.fillMaxWidth().padding(10.dp),
-                            fontFamily = FontFamily.Monospace,
-                            color = Color(0xFFE2E8F0),
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            // REPOSITORY HEADER ROW
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isExpanded = !isExpanded }
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.FolderOpen else Icons.Default.Folder,
+                    contentDescription = null,
+                    tint = PocketOrange,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = project.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                // Action: More options
+                Box {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Options", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Đổi tên dự án") },
+                            leadingIcon = { Icon(Icons.Default.Edit, null) },
+                            onClick = { menuOpen = false; renameText = project.name; showRename = true },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Mục lưu trữ (${archivedChats.size})") },
+                            leadingIcon = { Icon(Icons.Default.Archive, null) },
+                            onClick = { menuOpen = false; showArchivedDialog = true },
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Xóa dự án", color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                            onClick = { menuOpen = false; showDelete = true },
                         )
                     }
                 }
-            },
-            confirmButton = { Button(onClick = onTerminalConfirm) { Text("Run anyway") } },
-            dismissButton = { TextButton(onClick = onTerminalCancel) { Text("Cancel") } },
-        )
-    }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column(Modifier.fillMaxWidth()) {
+                // Action: Add new chat
+                IconButton(
+                    onClick = { onCreateChatForProject(project.id) },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "New Chat", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            // SESSIONS / CHAT LIST (INDENTED)
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, end = 10.dp, bottom = 6.dp)
+                ) {
+                    if (activeChats.isEmpty()) {
                         Text(
-                            state.activeProject?.name.orEmpty(),
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.combinedClickable(
-                                onClick = {},
-                                onLongClick = {
-                                    Toast.makeText(context, state.activeProject?.name.orEmpty(), Toast.LENGTH_LONG).show()
-                                },
-                            ),
-                        )
-                        Text(
-                            "${activeChat?.title ?: "Chat"} · ${state.provider.kind.title}",
-                            fontSize = 11.sp,
+                            text = "Chưa có phiên chat nào. Bấm + để bắt đầu.",
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
-                    }
-                },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Projects") } },
-                actions = {
-                    if (isAndroidProject) {
-                        IconButton(
-                            onClick = {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                                    !context.packageManager.canRequestPackageInstalls()) {
-                                    unknownAppsLauncher.launch(
-                                        Intent(
-                                            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                            Uri.parse("package:${context.packageName}"),
-                                        ),
+                    } else {
+                        activeChats.forEach { chat ->
+                            val diff = System.currentTimeMillis() - chat.updatedAtMillis
+                            val relTime = when {
+                                diff < 60_000 -> "vừa xong"
+                                diff < 3600_000 -> "${diff / 60_000}m"
+                                diff < 86400_000 -> "${diff / 3600_000}h"
+                                else -> "${diff / 86400_000}d"
+                            }
+                            val dateStr = java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault()).format(java.util.Date(chat.updatedAtMillis))
+
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp)
+                                    .clickable { onOpenChat(project, chat.id) }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Pin icon toggle
+                                    IconButton(
+                                        onClick = { onPinChat(project.id, chat.id, !chat.isPinned) },
+                                        modifier = Modifier.size(22.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (chat.isPinned) Icons.Default.PushPin else Icons.Default.OutlinedFlag,
+                                            contentDescription = "Pin",
+                                            tint = if (chat.isPinned) PocketOrange else MaterialTheme.colorScheme.outlineVariant,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(6.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            text = chat.title.ifBlank { "Phiên chat" },
+                                            fontSize = 13.sp,
+                                            fontWeight = if (chat.isPinned) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "$relTime ($dateStr)",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                } else {
-                                    onBuildAndRunAndroid()
+                                    Spacer(Modifier.width(4.dp))
+                                    // Edit Title
+                                    IconButton(
+                                        onClick = {
+                                            renamingChatId = chat.id
+                                            renameChatText = chat.title
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Sửa tên", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    // Archive Button
+                                    IconButton(
+                                        onClick = { onArchiveChat(project.id, chat.id) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Archive, contentDescription = "Lưu trữ", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
-                            },
-                            enabled = !state.androidBuildRunning && !state.isRunning && !state.projectTerminalRunning,
-                        ) {
-                            if (state.androidBuildRunning) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                            else Icon(Icons.Default.PlayArrow, "Build and run Android app")
+                            }
                         }
                     }
-                    IconButton(onClick = { showChats = true }) { Icon(Icons.Default.History, "Project chats") }
-                    if (state.isRunning) CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp), strokeWidth = 2.dp)
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-            )
-        },
-        bottomBar = {
-            if (!keyboardVisible) NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                WorkspaceTab.entries.filter { it != WorkspaceTab.CHANGES }.forEach { tab ->
-                    NavigationBarItem(
-                        selected = selectedTab == tab,
-                        onClick = {
-                            selectedTab = tab
-                            if (tab == WorkspaceTab.FILES) onRefreshFiles()
-                            if (tab == WorkspaceTab.TERMINAL) onTerminalOpened()
-                        },
-                        icon = { Icon(tab.icon, tab.label) },
-                        label = { Text(tab.label, fontSize = 10.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                        ),
-                    )
                 }
-            }
-        },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when (selectedTab) {
-                WorkspaceTab.CHAT -> ChatTab(
-                    state.messages,
-                    state.pendingApproval,
-                    state.liveProcess,
-                    state.isRunning,
-                    onSend,
-                    onStop,
-                    onApproval,
-                    listState = chatListState,
-                    taskStartedAtMillis = state.workSegmentStartedAtMillis ?: state.taskStartedAtMillis,
-                    taskFinishedAtMillis = state.taskFinishedAtMillis,
-                    thinkingActive = state.liveThinking,
-                    pendingAttachments = state.pendingAttachments,
-                    onAttach = {
-                        attachmentLauncher.launch(arrayOf("image/*", "text/*", "application/json", "application/xml"))
-                    },
-                    onRemoveAttachment = onRemoveAttachment,
-                    onOpenAttachment = onOpenAttachment,
-                    onRunInTerminal = { command ->
-                        selectedTab = WorkspaceTab.TERMINAL
-                        onTerminalOpened()
-                        onTerminalPrepare(command)
-                    },
-                    currentProvider = state.provider,
-                    onSelectModel = onSelectModel,
-                    onSelectThinking = onSelectThinking,
-                    customProviders = state.customProviders,
-                    onSelectCustomModel = onSelectCustomModel,
-                )
-                WorkspaceTab.FILES -> FilesTab(
-                    files = state.workspaceFiles,
-                    loading = state.filesLoading,
-                    suggestedProjectRoot = state.suggestedProjectRoot,
-                    onRefresh = onRefreshFiles,
-                    onOpenFile = onOpenFile,
-                    onUseSuggestedProjectRoot = onUseSuggestedProjectRoot,
-                    onExport = {
-                        exportProjectLauncher.launch("${state.activeProject?.slug ?: "project"}.zip")
-                    },
-                )
-                WorkspaceTab.TERMINAL -> TerminalScreen(
-                    lines = state.projectTerminalLines,
-                    isRunning = state.projectTerminalRunning,
-                    onRun = onTerminalRun,
-                    onInput = onTerminalInput,
-                    onInterrupt = onTerminalInterrupt,
-                    onClear = onTerminalClear,
-                    onToggleTheme = {},
-                    themeMode = state.themeMode,
-                    title = "Project Terminal",
-                    subtitle = "${state.projectTerminalCwd} · Ubuntu PRoot",
-                    liveOutput = state.projectTerminalLiveOutput,
-                    currentCommand = state.projectTerminalCommand,
-                    commandDraft = state.projectTerminalDraft,
-                    onCommandDraftConsumed = onTerminalDraftConsumed,
-                    promptPath = state.projectTerminalCwd,
-                    onStop = onTerminalStop,
-                    showThemeAction = false,
-                    showQuickCommands = false,
-                    compactHeader = true,
-                )
-                WorkspaceTab.CHANGES -> ChangesTab(
-                    state.changes,
-                    onUndoChanges,
-                    onKeepChanges,
-                    onUndoFileChange,
-                    onKeepFileChange,
-                )
-                WorkspaceTab.PREVIEW -> PreviewTab(state.previewReady, state.previewUrl)
             }
         }
     }
+
+    // Rename Chat Dialog
+    if (renamingChatId != null) {
+        AlertDialog(
+            onDismissRequest = { renamingChatId = null },
+            title = { Text("Đổi tên phiên chat") },
+            text = {
+                OutlinedTextField(
+                    value = renameChatText,
+                    onValueChange = { renameChatText = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    renamingChatId?.let { cId -> onRenameChat(project.id, cId, renameChatText) }
+                    renamingChatId = null
+                }) { Text("Lưu") }
+            },
+            dismissButton = {
+                TextButton(onClick = { renamingChatId = null }) { Text("Hủy") }
+            }
+        )
+    }
+
+    // Archived Chats Dialog
+    if (showArchivedDialog) {
+        AlertDialog(
+            onDismissRequest = { showArchivedDialog = false },
+            title = { Text("Mục Lưu Trữ (Archived Chats)") },
+            text = {
+                if (archivedChats.isEmpty()) {
+                    Text("Chưa có phiên chat nào trong mục lưu trữ.")
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
+                        items(archivedChats, key = { it.id }) { c ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(c.title, modifier = Modifier.weight(1f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                IconButton(
+                                    onClick = { onRestoreChat(project.id, c.id) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.Restore, contentDescription = "Khôi phục", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(
+                                    onClick = { onDeleteChatPermanently(project.id, c.id) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Default.DeleteForever, contentDescription = "Xóa hẳn", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showArchivedDialog = false }) { Text("Đóng") }
+            }
+        )
+    }
+
+
 }
 
 @Composable
@@ -3298,7 +3198,7 @@ private fun ChatTab(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = "${currentProvider.displayTitle} / $currentModelLabel",
+                                text = "${currentProvider.customName.ifBlank { currentProvider.displayTitle }}/$currentModelLabel",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -3451,111 +3351,164 @@ private fun ChatTab(
                         }
                     }
 
-                    DropdownMenu(
-                        expanded = showModelMenu,
-                        onDismissRequest = { showModelMenu = false },
-                    ) {
-                        Text(
-                            "⚡ CHỌN MODEL NHANH (ZCODE)",
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        HorizontalDivider()
-                        
-                        // KiraAI Models
-                        DropdownMenuItem(
-                            text = { Text("⚡ KiraAI: minimax-m3 (Suy luận sâu)") },
-                            onClick = {
-                                onSelectModel("minimax-m3")
-                                showModelMenu = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("⚡ KiraAI: deepseek-v4-flash") },
-                            onClick = {
-                                onSelectModel("deepseek-v4-flash")
-                                showModelMenu = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("⚡ KiraAI: minimax-m2.7") },
-                            onClick = {
-                                onSelectModel("minimax-m2.7")
-                                showModelMenu = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("⚡ Groq: llama-3.3-70b-versatile") },
-                            onClick = {
-                                onSelectModel("llama-3.3-70b-versatile")
-                                showModelMenu = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("⚡ OpenRouter: deepseek/deepseek-r1") },
-                            onClick = {
-                                onSelectModel("deepseek/deepseek-r1")
-                                showModelMenu = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("⚡ Xiaomi MiMo AI: mimo-x-pro-preview") },
-                            onClick = {
-                                onSelectModel("mimo-x-pro-preview")
-                                showModelMenu = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("⚡ OpenCode Zen: nemotron-3-ultra") },
-                            onClick = {
-                                onSelectModel("nemotron-3-ultra")
-                                showModelMenu = false
-                            },
-                        )
-                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
-                        DropdownMenuItem(
+                    // --- HIERARCHICAL MODEL PICKER (PHOTO 1: media_1789583803312.png) ---
+                    if (showModelMenu) {
+                        var selectedProvForSubmenu by remember {
+                            mutableStateOf(customProviders.firstOrNull { it.name == currentProvider.displayTitle || it.name == currentProvider.customName } ?: customProviders.firstOrNull())
+                        }
+
+                        AlertDialog(
+                            onDismissRequest = { showModelMenu = false },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(16.dp),
                             text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("➕", fontSize = 14.sp)
-                                    Spacer(Modifier.width(8.dp))
-                                    Column {
-                                        Text("+ Add model provider...", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
-                                        Text("Cấu hình Card Provider & Modal Model chuẩn ZCode", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().weight(1f),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // COLUMN 1: PROVIDERS LIST (LEFT)
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .weight(0.52f)
+                                                .fillMaxHeight()
+                                        ) {
+                                            items(customProviders, key = { it.id }) { prov ->
+                                                val isCurActive = (prov.name == currentProvider.customName || prov.name == currentProvider.displayTitle)
+                                                val isSubmenuSelected = prov.id == selectedProvForSubmenu?.id
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = if (isSubmenuSelected) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f) else Color.Transparent,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { selectedProvForSubmenu = prov }
+                                                        .padding(vertical = 2.dp)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = prov.name,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = if (isCurActive) FontWeight.Bold else FontWeight.Normal,
+                                                            modifier = Modifier.weight(1f),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                        if (isCurActive) {
+                                                            Text("✓", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                                            Spacer(Modifier.width(4.dp))
+                                                        }
+                                                        Icon(
+                                                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(14.dp),
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                                        // COLUMN 2: MODELS LIST (RIGHT SUBMENU)
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .weight(0.48f)
+                                                .fillMaxHeight()
+                                        ) {
+                                            val models = selectedProvForSubmenu?.models ?: emptyList()
+                                            if (models.isEmpty()) {
+                                                item {
+                                                    Text(
+                                                        "Không có model",
+                                                        fontSize = 11.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.padding(8.dp)
+                                                    )
+                                                }
+                                            } else {
+                                                items(models, key = { it.id }) { mItem ->
+                                                    val isSelectedModel = (selectedProvForSubmenu?.name == currentProvider.customName || selectedProvForSubmenu?.name == currentProvider.displayTitle) && mItem.id == currentProvider.model
+                                                    Surface(
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        color = if (isSelectedModel) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clickable {
+                                                                selectedProvForSubmenu?.let { prov ->
+                                                                    onSelectCustomModel(prov, mItem)
+                                                                }
+                                                                showModelMenu = false
+                                                            }
+                                                            .padding(vertical = 3.dp)
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 7.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = mItem.id,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = if (isSelectedModel) FontWeight.Bold else FontWeight.Normal,
+                                                                modifier = Modifier.weight(1f),
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                            if (mItem.supportsImage) {
+                                                                Surface(
+                                                                    shape = RoundedCornerShape(4.dp),
+                                                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                                                ) {
+                                                                    Text("Vision", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                                                }
+                                                            } else if (mItem.id.contains("thinking") || mItem.id.contains("m3") || mItem.id.contains("r1")) {
+                                                                Surface(
+                                                                    shape = RoundedCornerShape(4.dp),
+                                                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                                                ) {
+                                                                    Text("Thinking", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                                    // BOTTOM ACTION: MANAGE MODELS
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                showModelMenu = false
+                                                onSelectModel("custom-setup-trigger")
+                                            }
+                                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Manage models",
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
                                     }
                                 }
                             },
-                            onClick = {
-                                showModelMenu = false
-                                onSelectModel("custom-setup-trigger")
-                            },
+                            confirmButton = {}
                         )
-                        if (customProviders.isNotEmpty()) {
-                            HorizontalDivider()
-                            Text(
-                                "⚡ NHÀ CUNG CẤP TÙY CHỈNH (CUSTOM)",
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            customProviders.forEach { prov ->
-                                prov.models.forEach { mItem ->
-                                    DropdownMenuItem(
-                                        text = { Text("⚡ ${prov.name}: ${mItem.id}") },
-                                        onClick = {
-                                            onSelectCustomModel(prov, mItem)
-                                            showModelMenu = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
                     }
                 }
 
-                val canSend = prompt.isNotBlank() || pendingAttachments.isNotEmpty()
+                val canSend =val canSend = prompt.isNotBlank() || pendingAttachments.isNotEmpty()
 
                 Surface(
                     shape = RoundedCornerShape(26.dp),
