@@ -30,7 +30,7 @@ interface RuntimeBridge {
 object RuntimeLaunchConfigBuilder {
     fun build(profile: ProviderProfile, authToken: String? = null, localGatewayUrl: String? = null): RuntimeLaunchConfig {
         val environment = linkedMapOf("DISABLE_AUTOUPDATER" to "1")
-        when (profile.kind.protocol) {
+        when (profile.activeProtocol) {
             com.jarves.mh.model.ProviderProtocol.CLAUDE_LOGIN -> Unit
             com.jarves.mh.model.ProviderProtocol.ANTHROPIC -> {
                 environment["ANTHROPIC_BASE_URL"] = profile.baseUrl.trimEnd('/')
@@ -53,7 +53,7 @@ object RuntimeLaunchConfigBuilder {
             }
         }
         val runtimeModel = environment["ANTHROPIC_MODEL"] ?: profile.model
-        if (profile.kind.protocol != com.jarves.mh.model.ProviderProtocol.CLAUDE_LOGIN) {
+        if (profile.activeProtocol != com.jarves.mh.model.ProviderProtocol.CLAUDE_LOGIN) {
             environment["ANTHROPIC_DEFAULT_OPUS_MODEL"] = runtimeModel
             environment["ANTHROPIC_DEFAULT_SONNET_MODEL"] = runtimeModel
             environment["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = runtimeModel
