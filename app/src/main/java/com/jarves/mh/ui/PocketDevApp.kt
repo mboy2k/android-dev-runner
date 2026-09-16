@@ -278,6 +278,7 @@ fun PocketDevApp(viewModel: MainViewModel = viewModel()) {
             )
         state.activeProject != null -> WorkspaceScreen(
             state = state,
+            onSelectModel = viewModel::selectModel,
             onBack = viewModel::closeProject,
             onSend = viewModel::sendPrompt,
             onStop = viewModel::stopTask,
@@ -2545,6 +2546,7 @@ private fun WorkspaceScreen(
     onRemoveAttachment: (String) -> Unit,
     onOpenAttachment: (ChatAttachment) -> Unit,
     onBuildAndRunAndroid: () -> Unit,
+    onSelectModel: (String) -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
@@ -2772,7 +2774,7 @@ private fun WorkspaceScreen(
                         onTerminalPrepare(command)
                     },
                     currentProvider = state.provider,
-                    onSelectModel = viewModel::selectModel,
+                    onSelectModel = onSelectModel,
                 )
                 WorkspaceTab.FILES -> FilesTab(
                     files = state.workspaceFiles,
@@ -3141,7 +3143,7 @@ private fun ChatTab(
     onRemoveAttachment: (String) -> Unit,
     onOpenAttachment: (ChatAttachment) -> Unit,
     onRunInTerminal: (String) -> Unit,
-    currentProvider: com.jarves.mh.model.ProviderProfile = com.jarves.mh.model.ProviderProfile(),
+    currentProvider: com.jarves.mh.model.ProviderProfile? = null,
     onSelectModel: (String) -> Unit = {},
 ) {
     val view = LocalView.current
