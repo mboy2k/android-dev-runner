@@ -3143,7 +3143,7 @@ private fun ChatTab(
     onRemoveAttachment: (String) -> Unit,
     onOpenAttachment: (ChatAttachment) -> Unit,
     onRunInTerminal: (String) -> Unit,
-    currentProvider: com.jarves.mh.model.ProviderProfile? = null,
+    currentProvider: com.jarves.mh.model.ProviderProfile = com.jarves.mh.model.ProviderProfile(kind = com.jarves.mh.model.ProviderKind.LLM_ROUTER),
     onSelectModel: (String) -> Unit = {},
 ) {
     val view = LocalView.current
