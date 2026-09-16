@@ -41,6 +41,7 @@ data class CustomProviderConfig(
     val apiFormat: String = "OPENAI_CHAT",
     val models: List<CustomModelItem> = emptyList(),
     val customHeaders: String = "",
+    val isEnabled: Boolean = true,
 )
 
 data class ProviderProfile(
@@ -238,6 +239,8 @@ data class ProjectChat(
     val title: String = "New chat",
     val createdAtMillis: Long = System.currentTimeMillis(),
     val updatedAtMillis: Long = System.currentTimeMillis(),
+    val isPinned: Boolean = false,
+    val isArchived: Boolean = false,
 )
 
 enum class DiffLineType { CONTEXT, ADDITION, DELETION, INFO }
@@ -263,4 +266,21 @@ data class ActivityItem(
     val detail: String,
     val isComplete: Boolean = true,
     val isCommand: Boolean = false,
+)
+
+
+data class SkillItem(
+    val id: String,
+    val name: String,
+    val description: String,
+    val isEnabled: Boolean = true,
+)
+
+data class SubagentItem(
+    val id: String,
+    val name: String,
+    val toolsSummary: String,
+    val description: String,
+    val modelInheritance: String = "Inherit default",
+    val isBuiltIn: Boolean = false,
 )
