@@ -161,6 +161,10 @@ data class AppUiState(
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
+    private var activeRunningProjectId: String? = null
+    private var activeRunningChatId: String? = null
+    private var runningMessages: List<ChatMessage> = emptyList()
+
     private val vault = ApiKeyVault(application)
     private val preferences = AppPreferences(application)
     private val runtime = ClaudeRuntimeBridge(application) { profile -> vault.get(profile.kind.name) }
@@ -1196,15 +1200,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val activeChat = chats.first()
         val saved = preferences.loadMessages(project.id, activeChat.id)
-        val msgs = saved.ifEmpty { listOf(ChatMessage(fromUser = false, text = "Hi! Tell me what you want to build or change.")) }
+        val isCurrentRunning = project.id == activeRunningProjectId && _state.value.isRunning
+        val msgs = if (isCurrentRunning && runningMessages.isNotEmpty()) runningMessages else saved.ifEmpty { listOf(ChatMessage(fromUser = false, text = "Hi! Tell me what you want to build or change.")) }
         _state.update {
             it.copy(
                 activeProject = project,
                 projectChats = chats,
-                activeChatId = activeChat.id,
+                activeChatId = if (isCurrentRunning && activeRunningChatId != null) activeRunningChatId else activeChat.id,
                 messages = msgs,
-                liveProcess = emptyList(),
-                liveThinking = false,
+                liveProcess = if (isCurrentRunning) it.liveProcess else emptyList(),
+                liveThinking = if (isCurrentRunning) it.liveThinking else false,
                 taskStartedAtMillis = null,
                 taskFinishedAtMillis = null,
                 changes = emptyList(),
@@ -1234,9 +1239,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun closeProject() {
         val active = _state.value.activeProject
         persistMessages()
-        if (_state.value.isRunning) {
-            viewModelScope.launch { runtime.stopActiveSession() }
-        }
+        // Do NOT stop active session on back - let it run in background foreground service!
         if (_state.value.projectTerminalRunning) stopProjectTerminalCommand()
 
         if (active != null) {
@@ -1502,7 +1505,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun switchChat(chatId: String) {
         val current = _state.value
         val project = current.activeProject ?: return
-        if (current.isRunning || current.activeChatId == chatId) return
+        if (current.activeChatId == chatId) return
         val chat = current.projectChats.firstOrNull { it.id == chatId } ?: return
         persistMessages()
         val saved = preferences.loadMessages(project.id, chat.id)
@@ -1749,8 +1752,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun sendPrompt(prompt: String) {
         val project = state.value.activeProject ?: return
         val attachments = state.value.pendingAttachments
-        if ((prompt.isBlank() && attachments.isEmpty()) || state.value.isRunning) return
-        val requestText = prompt.trim().ifBlank { "Please review the attached files." }
+        val trimmedPrompt = prompt.trim()
+
+        // Slash command: /clear
+        if (trimmedPrompt.equals("/clear", ignoreCase = true)) {
+            val welcomeMsg = ChatMessage(fromUser = false, text = "Chat cleared. What would you like to build or change?")
+            _state.update { it.copy(messages = listOf(welcomeMsg), liveProcess = emptyList(), liveThinking = false) }
+            persistMessages()
+            return
+        }
+
+        // Slash command: /compact
+        if (trimmedPrompt.equals("/compact", ignoreCase = true)) {
+            val currentMsgs = _state.value.messages
+            if (currentMsgs.size > 2) {
+                val summaryText = "Context compacted: Previous conversation (" + currentMsgs.size + " turns) summarized to optimize memory."
+                val compacted = listOf(ChatMessage(fromUser = false, text = summaryText))
+                _state.update { it.copy(messages = compacted, liveProcess = emptyList()) }
+                persistMessages()
+            }
+            return
+        }
+
+        if ((trimmedPrompt.isBlank() && attachments.isEmpty()) || state.value.isRunning) return
+
+        val requestText = if (trimmedPrompt.startsWith("/goal ", ignoreCase = true)) {
+            "[GOAL MODE: AUTONOMOUS EXECUTION]
+" + trimmedPrompt.removePrefix("/goal ").trim()
+        } else {
+            trimmedPrompt.ifBlank { "Please review the attached files." }
+        }
+
+        activeRunningProjectId = project.id
+        activeRunningChatId = state.value.activeChatId
         updateActiveChatTitle(requestText)
         _state.update {
             val startedAt = System.currentTimeMillis()
@@ -2163,4 +2197,102 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private const val TEST_OPENROUTER_BASE_URL = "https://openrouter.ai/api"
         private const val TEST_OPENROUTER_MODEL = "stealth/ox-alpha"
     }
+
+    // --- PIN / ARCHIVE / RENAME / DELETE CHATS ---
+    fun pinChat(projectId: String, chatId: String, pinned: Boolean) {
+        val chats = preferences.loadProjectChats(projectId).map {
+            if (it.id == chatId) it.copy(isPinned = pinned) else it
+        }.sortedWith(compareByDescending<com.jarves.mh.model.ProjectChat> { it.isPinned }.thenByDescending { it.updatedAtMillis })
+        preferences.saveProjectChats(projectId, chats)
+        if (_state.value.activeProject?.id == projectId) {
+            _state.update { it.copy(projectChats = chats) }
+        }
+    }
+
+    fun archiveChat(projectId: String, chatId: String) {
+        val chats = preferences.loadProjectChats(projectId).map {
+            if (it.id == chatId) it.copy(isArchived = true) else it
+        }
+        preferences.saveProjectChats(projectId, chats)
+        if (_state.value.activeProject?.id == projectId) {
+            val unarchived = chats.filterNot { it.isArchived }
+            val nextChatId = if (_state.value.activeChatId == chatId) unarchived.firstOrNull()?.id else _state.value.activeChatId
+            _state.update { it.copy(projectChats = chats, activeChatId = nextChatId) }
+            if (nextChatId != null && nextChatId != chatId) {
+                val msgs = preferences.loadMessages(projectId, nextChatId)
+                _state.update { it.copy(messages = msgs) }
+            }
+        }
+    }
+
+    fun restoreChat(projectId: String, chatId: String) {
+        val chats = preferences.loadProjectChats(projectId).map {
+            if (it.id == chatId) it.copy(isArchived = false) else it
+        }
+        preferences.saveProjectChats(projectId, chats)
+        if (_state.value.activeProject?.id == projectId) {
+            _state.update { it.copy(projectChats = chats) }
+        }
+    }
+
+    fun deleteChatPermanently(projectId: String, chatId: String) {
+        val chats = preferences.loadProjectChats(projectId).filterNot { it.id == chatId }
+        preferences.saveProjectChats(projectId, chats)
+        if (_state.value.activeProject?.id == projectId) {
+            val nextChatId = if (_state.value.activeChatId == chatId) chats.firstOrNull { !it.isArchived }?.id else _state.value.activeChatId
+            _state.update { it.copy(projectChats = chats, activeChatId = nextChatId) }
+            if (nextChatId != null) {
+                val msgs = preferences.loadMessages(projectId, nextChatId)
+                _state.update { it.copy(messages = msgs) }
+            }
+        }
+    }
+
+    fun renameChat(projectId: String, chatId: String, newTitle: String) {
+        val clean = newTitle.trim()
+        if (clean.isBlank()) return
+        val chats = preferences.loadProjectChats(projectId).map {
+            if (it.id == chatId) it.copy(title = clean) else it
+        }
+        preferences.saveProjectChats(projectId, chats)
+        if (_state.value.activeProject?.id == projectId) {
+            _state.update { it.copy(projectChats = chats) }
+        }
+    }
+
+    fun createChatForProject(projectId: String) {
+        val chats = preferences.loadProjectChats(projectId)
+        val newChat = com.jarves.mh.model.ProjectChat(title = "New chat")
+        val updated = listOf(newChat) + chats
+        preferences.saveProjectChats(projectId, updated)
+        if (_state.value.activeProject?.id == projectId) {
+            _state.update { it.copy(projectChats = updated, activeChatId = newChat.id, messages = listOf(com.jarves.mh.model.ChatMessage(fromUser = false, text = "Hi! Tell me what you want to build or change."))) }
+        }
+    }
+
+    // --- SKILLS, SUBAGENTS & BRAIN SETTINGS ---
+    fun toggleSkill(skillId: String, enabled: Boolean) {
+        val current = preferences.loadSkills().map {
+            if (it.id == skillId) it.copy(isEnabled = enabled) else it
+        }
+        preferences.saveSkills(current)
+    }
+
+    fun saveBrainConstitution(text: String) {
+        preferences.brainConstitution = text
+        // Update /root/.claude/CLAUDE.md in PRoot
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val rootfs = com.jarves.mh.runtime.RuntimeInstaller(getApplication()).rootfs()
+                val claudeMd = java.io.File(rootfs, "root/.claude/CLAUDE.md")
+                claudeMd.parentFile?.mkdirs()
+                claudeMd.writeText(text)
+            }
+        }
+    }
+
+    fun resetBrainConstitution() {
+        saveBrainConstitution(preferences.defaultBrainConstitution)
+    }
+
 }
