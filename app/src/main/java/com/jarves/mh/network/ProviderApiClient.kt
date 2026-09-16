@@ -126,10 +126,10 @@ class ProviderApiClient {
     private fun messagesEndpoint(baseUrl: String, protocol: ProviderProtocol): String {
         val base = baseUrl.trim().trimEnd('/')
         return when (protocol) {
-            ProviderProtocol.OPENROUTER -> "$base/v1/messages"
-            ProviderProtocol.OPENAI_CHAT -> "$base/chat/completions"
-            ProviderProtocol.OPENAI_RESPONSES -> "$base/responses"
-            else -> "$base/v1/messages"
+            ProviderProtocol.OPENROUTER -> if (base.endsWith("/v1/messages") || base.endsWith("/messages")) base else "$base/v1/messages"
+            ProviderProtocol.OPENAI_CHAT -> if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
+            ProviderProtocol.OPENAI_RESPONSES -> if (base.endsWith("/responses")) base else "$base/responses"
+            else -> if (base.endsWith("/v1/messages") || base.endsWith("/messages")) base else "$base/v1/messages"
         }
     }
 
