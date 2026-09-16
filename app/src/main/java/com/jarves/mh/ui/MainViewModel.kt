@@ -23,6 +23,8 @@ import com.jarves.mh.model.ProjectKind
 import com.jarves.mh.model.ProjectChat
 import com.jarves.mh.model.ProviderKind
 import com.jarves.mh.model.ProviderProfile
+import com.jarves.mh.model.CustomProviderConfig
+import com.jarves.mh.model.CustomModelItem
 import com.jarves.mh.model.RuntimeEvent
 import com.jarves.mh.model.ToolRequest
 import com.jarves.mh.model.WorkspaceEntry
@@ -91,6 +93,8 @@ private data class ProjectTerminalResult(
 
 data class AppUiState(
     val startupStage: StartupStage = StartupStage.CHECKING,
+    val customProviders: List<CustomProviderConfig> = emptyList(),
+    val systemPromptOverride: String = "",
     val startupProgress: Float = 0f,
     val startupMessage: String = "Checking this device…",
     val startupBytes: Pair<Long, Long>? = null,
@@ -1042,6 +1046,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val updated = current.copy(model = newModel)
         val secret = getSavedApiKey(current.kind)
         updateProvider(updated, secret)
+    }
+
+    fun selectThinkingLevel(level: String) {
+        preferences.thinkingLevel = level
+        val current = _state.value.provider
+        val updated = current.copy(thinkingLevel = level)
+        val secret = getSavedApiKey(current.kind)
+        updateProvider(updated, secret)
+    }
+
+    fun saveCustomProvider(config: CustomProviderConfig) {
+        val current = preferences.loadCustomProviders().filterNot { it.id == config.id } + config
+        preferences.saveCustomProviders(current)
+        _state.update { it.copy(customProviders = current) }
+    }
+
+    fun deleteCustomProvider(id: String) {
+        val current = preferences.loadCustomProviders().filterNot { it.id == id }
+        preferences.saveCustomProviders(current)
+        _state.update { it.copy(customProviders = current) }
+    }
+
+    fun saveSystemPromptOverride(prompt: String) {
+        preferences.systemPromptOverride = prompt
+        _state.update { it.copy(systemPromptOverride = prompt) }
+    }
+
+    fun selectCustomModel(providerConfig: CustomProviderConfig, model: CustomModelItem) {
+        val protocol = if (providerConfig.apiFormat == "ANTHROPIC_MESSAGES") {
+            com.jarves.mh.model.ProviderProtocol.ANTHROPIC_MESSAGES
+        } else {
+            com.jarves.mh.model.ProviderProtocol.OPENAI_CHAT
+        }
+        val profile = ProviderProfile(
+            kind = com.jarves.mh.model.ProviderKind.CUSTOM,
+            baseUrl = providerConfig.baseUrl,
+            model = model.id,
+            customName = "${providerConfig.name} / ${model.id}",
+            protocolOverride = protocol,
+            customHeaders = providerConfig.customHeaders,
+            thinkingLevel = preferences.thinkingLevel,
+        )
+        updateProvider(profile, providerConfig.apiKey)
     }
 
     fun selectProviderAndModel(kind: com.jarves.mh.model.ProviderKind, baseUrl: String, model: String, secret: String = "") {
