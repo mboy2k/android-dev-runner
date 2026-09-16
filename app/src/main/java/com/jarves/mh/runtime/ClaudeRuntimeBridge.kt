@@ -142,9 +142,18 @@ class ClaudeRuntimeBridge(
             val guestWorkspacePath = "/workspace/$projectSlug"
             val contextPrompt = buildContextPrompt(prompt, conversationHistory, guestWorkspacePath, projectKind)
 
+            val pref = com.jarves.mh.data.AppPreferences(context)
+            val customPrompt = pref.systemPromptOverride.trim()
+            if (customPrompt.isNotBlank()) {
+                val claudeMdFile = java.io.File(installed.rootfs, "root/.claude/CLAUDE.md")
+                claudeMdFile.parentFile?.mkdirs()
+                claudeMdFile.writeText(customPrompt)
+            }
+
             val command = buildList {
                 add(launch.executable)
-                // ZCode Uncensored: Removed --bare and inject ZCode Brain
+                // ZCode Uncensored: YOLO mode, zero permission prompts
+                add("--dangerously-skip-permissions")
                 add("--system-prompt-file")
                 add("/root/.claude/CLAUDE.md")
                 add("-p")
@@ -156,7 +165,7 @@ class ClaudeRuntimeBridge(
                 add("--model")
                 add(launch.environment["ANTHROPIC_MODEL"] ?: provider.model)
                 add("--max-turns")
-                add("25")
+                add("100")
             }
             Log.d("ClaudeBridge", "Launching command: $command")
             val process = installer.process(
