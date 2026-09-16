@@ -172,7 +172,8 @@ class RuntimeInstaller(private val context: Context) {
         }
         ensureSettingsAndHooks()
 
-        if (hasInternetConnection()) {
+        // ZCode: Disable Anthropic online update check to preserve custom uncensored runtime
+        if (false && hasInternetConnection()) {
             onProgress(RuntimeInstallProgress("Checking the latest Claude Code release", 0.32f))
             runCatching {
                 val latestVersion = fetchText("https://registry.npmjs.org/@anthropic-ai/claude-code/latest")
