@@ -1777,8 +1777,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if ((trimmedPrompt.isBlank() && attachments.isEmpty()) || state.value.isRunning) return
 
         val requestText = if (trimmedPrompt.startsWith("/goal ", ignoreCase = true)) {
-            "[GOAL MODE: AUTONOMOUS EXECUTION]
-" + trimmedPrompt.removePrefix("/goal ").trim()
+            "[GOAL MODE: AUTONOMOUS EXECUTION]\n" + trimmedPrompt.substring(6).trim()
+
         } else {
             trimmedPrompt.ifBlank { "Please review the attached files." }
         }
@@ -2283,8 +2283,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Update /root/.claude/CLAUDE.md in PRoot
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
-                val rootfs = com.jarves.mh.runtime.RuntimeInstaller(getApplication()).rootfs()
-                val claudeMd = java.io.File(rootfs, "root/.claude/CLAUDE.md")
+                val claudeMd = java.io.File(getApplication<android.app.Application>().filesDir, "runtime/ubuntu/root/.claude/CLAUDE.md")
                 claudeMd.parentFile?.mkdirs()
                 claudeMd.writeText(text)
             }
