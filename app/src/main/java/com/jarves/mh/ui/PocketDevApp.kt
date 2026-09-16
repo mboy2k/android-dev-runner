@@ -2553,7 +2553,7 @@ private fun ProjectCard(
                         )
                         DropdownMenuItem(
                             text = { Text("Mục lưu trữ (${archivedChats.size})") },
-                            leadingIcon = { Icon(Icons.Default.Archive, null) },
+                            leadingIcon = { Text("🗃️", fontSize = 14.sp) },
                             onClick = { menuOpen = false; showArchivedDialog = true },
                         )
                         HorizontalDivider()
@@ -2616,7 +2616,7 @@ private fun ProjectCard(
                                         modifier = Modifier.size(22.dp)
                                     ) {
                                         Icon(
-                                            imageVector = if (chat.isPinned) Icons.Default.PushPin else Icons.Default.OutlinedFlag,
+                                            // pin flag
                                             contentDescription = "Pin",
                                             tint = if (chat.isPinned) PocketOrange else MaterialTheme.colorScheme.outlineVariant,
                                             modifier = Modifier.size(15.dp)
@@ -2654,7 +2654,7 @@ private fun ProjectCard(
                                         onClick = { onArchiveChat(project.id, chat.id) },
                                         modifier = Modifier.size(24.dp)
                                     ) {
-                                        Icon(Icons.Default.Archive, contentDescription = "Lưu trữ", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("🗃️", fontSize = 13.sp)
                                     }
                                 }
                             }
@@ -2710,13 +2710,13 @@ private fun ProjectCard(
                                     onClick = { onRestoreChat(project.id, c.id) },
                                     modifier = Modifier.size(28.dp)
                                 ) {
-                                    Icon(Icons.Default.Restore, contentDescription = "Khôi phục", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                    Text("↩️", fontSize = 16.sp)
                                 }
                                 IconButton(
                                     onClick = { onDeleteChatPermanently(project.id, c.id) },
                                     modifier = Modifier.size(28.dp)
                                 ) {
-                                    Icon(Icons.Default.DeleteForever, contentDescription = "Xóa hẳn", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                    Text("🗑️", fontSize = 16.sp)
                                 }
                             }
                         }
@@ -3044,8 +3044,6 @@ private fun WorkspaceScreen(
         }
     }
 }
-
-@Composable
 
 @Composable
 private fun ChatSwitcherDialog(
