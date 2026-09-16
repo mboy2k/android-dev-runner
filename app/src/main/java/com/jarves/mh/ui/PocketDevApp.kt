@@ -3078,7 +3078,7 @@ private fun WorkspaceScreen(
                     currentProvider = state.provider,
                     onSelectModel = onSelectModel,
                     onSelectThinking = onSelectThinking,
-                    customProviders = state.customProviders.ifEmpty { prefs.loadCustomProviders() },
+                    customProviders = state.customProviders.ifEmpty { com.jarves.mh.data.AppPreferences(context).loadCustomProviders() },
                 onManageModels = onBack,
                     onSelectCustomModel = onSelectCustomModel,
                 )
