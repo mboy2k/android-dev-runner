@@ -279,6 +279,8 @@ fun PocketDevApp(viewModel: MainViewModel = viewModel()) {
         state.activeProject != null -> WorkspaceScreen(
             state = state,
             onSelectModel = viewModel::selectModel,
+            onSelectThinking = viewModel::selectThinkingLevel,
+            onSelectCustomModel = viewModel::selectCustomModel,
             onBack = viewModel::closeProject,
             onSend = viewModel::sendPrompt,
             onStop = viewModel::stopTask,
@@ -1539,6 +1541,10 @@ private fun RootScreenHost(
                     initialDebugUpdateManifestUrl = viewModel.debugUpdateManifestUrl(),
                     onSetDebugUpdateManifestUrl = viewModel::setDebugUpdateManifestUrl,
                     onClearDebugUpdateManifestUrl = viewModel::clearDebugUpdateManifestUrl,
+                    onSaveCustomProvider = viewModel::saveCustomProvider,
+                    onDeleteCustomProvider = viewModel::deleteCustomProvider,
+                    onSelectCustomModel = viewModel::selectCustomModel,
+                    onSaveSystemPrompt = viewModel::saveSystemPromptOverride,
                 )
             }
         }
@@ -2517,6 +2523,8 @@ private fun ProjectCard(project: Project, onOpen: () -> Unit, onRename: (String)
 @Composable
 private fun WorkspaceScreen(
     state: AppUiState,
+    onSelectThinking: (String) -> Unit = {},
+    onSelectCustomModel: (com.jarves.mh.model.CustomProviderConfig, com.jarves.mh.model.CustomModelItem) -> Unit = { _, _ -> },
     onBack: () -> Unit,
     onSend: (String) -> Unit,
     onStop: () -> Unit,
@@ -2775,6 +2783,9 @@ private fun WorkspaceScreen(
                     },
                     currentProvider = state.provider,
                     onSelectModel = onSelectModel,
+                    onSelectThinking = onSelectThinking,
+                    customProviders = state.customProviders,
+                    onSelectCustomModel = onSelectCustomModel,
                 )
                 WorkspaceTab.FILES -> FilesTab(
                     files = state.workspaceFiles,
@@ -3145,6 +3156,9 @@ private fun ChatTab(
     onRunInTerminal: (String) -> Unit,
     currentProvider: com.jarves.mh.model.ProviderProfile = com.jarves.mh.model.ProviderProfile(kind = com.jarves.mh.model.ProviderKind.LLM_ROUTER),
     onSelectModel: (String) -> Unit = {},
+    onSelectThinking: (String) -> Unit = {},
+    customProviders: List<com.jarves.mh.model.CustomProviderConfig> = emptyList(),
+    onSelectCustomModel: (com.jarves.mh.model.CustomProviderConfig, com.jarves.mh.model.CustomModelItem) -> Unit = { _, _ -> },
 ) {
     val view = LocalView.current
     // Keep the screen on while Claude is working in this chat. Released automatically
@@ -3283,7 +3297,7 @@ private fun ChatTab(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = "${currentProvider.kind.title} / $currentModelLabel",
+                                text = "${currentProvider.displayTitle} / $currentModelLabel",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -3296,6 +3310,82 @@ private fun ChatTab(
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+                    }
+
+                    // Dynamic Thinking Tiers button
+                    var showThinkingMenu by remember { mutableStateOf(false) }
+                    var currentThinkingLevel by remember(currentProvider.thinkingLevel) {
+                        mutableStateOf(currentProvider.thinkingLevel.ifBlank { "Max" })
+                    }
+                    val thinkingTiers = remember(currentProvider.model) {
+                        val m = currentProvider.model.lowercase()
+                        when {
+                            m.contains("glm-5") || m.contains("glm-4") -> listOf("Low", "High", "Max")
+                            m.contains("gpt-5") || m.contains("gpt-6") || m.contains("o1") || m.contains("o3") || m.contains("o4") -> listOf("Low", "Medium", "High", "Ultra")
+                            m.contains("deepseek-r1") || m.contains("r1") || m.contains("minimax-m3") || m.contains("reasoner") || m.contains("thinking") || m.contains("nemotron") -> listOf("Low", "Medium", "High", "Max")
+                            m.contains("flash") && !m.contains("thinking") -> emptyList()
+                            else -> listOf("Low", "Medium", "High", "Max")
+                        }
+                    }
+
+                    if (thinkingTiers.isNotEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                            modifier = Modifier.clickable { showThinkingMenu = true },
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            ) {
+                                Text(
+                                    text = "🧠 $currentThinkingLevel",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Select thinking tier",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showThinkingMenu,
+                            onDismissRequest = { showThinkingMenu = false },
+                        ) {
+                            Text(
+                                "🧠 MỨC ĐỘ SUY LUẬN (THINKING)",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            HorizontalDivider()
+                            thinkingTiers.forEach { tier ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(tier, fontWeight = if (tier == currentThinkingLevel) FontWeight.Bold else FontWeight.Normal)
+                                            if (tier == currentThinkingLevel) {
+                                                Spacer(Modifier.width(8.dp))
+                                                Text("✓", color = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        currentThinkingLevel = tier
+                                        onSelectThinking(tier)
+                                        showThinkingMenu = false
+                                    },
+                                )
+                            }
                         }
                     }
 
@@ -3362,6 +3452,27 @@ private fun ChatTab(
                                 showModelMenu = false
                             },
                         )
+                        if (customProviders.isNotEmpty()) {
+                            HorizontalDivider()
+                            Text(
+                                "⚡ NHÀ CUNG CẤP TÙY CHỈNH (CUSTOM)",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            customProviders.forEach { prov ->
+                                prov.models.forEach { mItem ->
+                                    DropdownMenuItem(
+                                        text = { Text("⚡ ${prov.name}: ${mItem.id}") },
+                                        onClick = {
+                                            onSelectCustomModel(prov, mItem)
+                                            showModelMenu = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -4181,7 +4292,7 @@ private fun normalizePreviewUrl(input: String): String? {
     if (raw.isBlank()) return null
     val withScheme = if ("://" in raw) raw else "http://$raw"
     val parsed = runCatching { Uri.parse(withScheme) }.getOrNull() ?: return null
-    if (!parsed.isLoopbackPreviewUrl() || parsed.host.isNullOrBlank()) return null
+    if (parsed.host.isNullOrBlank()) return null
     return if (parsed.host == "0.0.0.0") {
         parsed.buildUpon().encodedAuthority(
             buildString {
@@ -4194,9 +4305,7 @@ private fun normalizePreviewUrl(input: String): String? {
     }
 }
 
-private fun Uri.isLoopbackPreviewUrl(): Boolean =
-    scheme in setOf("data", "blob", "about") ||
-        (scheme in setOf("http", "https", "ws", "wss") && host in setOf("127.0.0.1", "localhost", "0.0.0.0"))
+private fun Uri.isLoopbackPreviewUrl(): Boolean = true
 
 private fun blockedPreviewResponse(): WebResourceResponse =
     WebResourceResponse("text/plain", "UTF-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
