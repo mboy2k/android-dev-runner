@@ -188,7 +188,8 @@ internal class LocalFormatGateway(
     }
 
     private fun callProvider(body: JSONObject): Pair<Int, String> {
-        val endpoint = profile.baseUrl.trimEnd('/') + "/chat/completions"
+        val base = profile.baseUrl.trim().trimEnd('/')
+        val endpoint = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
         val connection = URL(endpoint).openConnection() as HttpURLConnection
         return try {
             connection.requestMethod = "POST"
