@@ -24,12 +24,41 @@ enum class ProviderKind(
     CUSTOM("Custom API", "Anthropic-compatible endpoint", ProviderProtocol.ANTHROPIC_GATEWAY, "", "", true),
 }
 
+data class CustomModelItem(
+    val id: String,
+    val contextWindow: Int = 1000000,
+    val maxOutputTokens: Int = 128000,
+    val supportsImage: Boolean = false,
+    val supportsVideo: Boolean = false,
+    val supportsPdf: Boolean = false,
+)
+
+data class CustomProviderConfig(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String = "",
+    val baseUrl: String = "",
+    val apiKey: String = "",
+    val apiFormat: String = "OPENAI_CHAT",
+    val models: List<CustomModelItem> = emptyList(),
+    val customHeaders: String = "",
+)
+
 data class ProviderProfile(
     val kind: ProviderKind,
     val baseUrl: String = kind.defaultBaseUrl,
     val model: String = kind.defaultModel,
     val hasSecret: Boolean = false,
-)
+    val customName: String = "",
+    val protocolOverride: ProviderProtocol? = null,
+    val customHeaders: String = "",
+    val thinkingLevel: String = "Max",
+) {
+    val activeProtocol: ProviderProtocol
+        get() = protocolOverride ?: kind.protocol
+
+    val displayTitle: String
+        get() = if (customName.isNotBlank()) customName else kind.title
+}
 
 enum class ProjectKind { PROJECT, QUICK_PROJECT }
 
