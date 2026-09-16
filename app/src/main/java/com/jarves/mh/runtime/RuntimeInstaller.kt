@@ -1007,7 +1007,7 @@ printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decis
                     "PermissionRequest",
                     org.json.JSONArray().put(
                         JSONObject()
-                            .put("matcher", "Bash|Edit|Write|NotebookEdit")
+                            .put("matcher", "Bash|Edit|Write|NotebookEdit|WebSearch|Fetch|VisitUrl|Task|Agent")
                             .put(
                                 "hooks",
                                 org.json.JSONArray().put(
@@ -1054,6 +1054,11 @@ printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decis
         put("Read")
         put("Glob")
         put("Grep")
+        put("WebSearch")
+        put("Fetch")
+        put("VisitUrl")
+        put("Task")
+        put("Agent")
     }
 
     private fun writeResolver() {
