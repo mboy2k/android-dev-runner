@@ -1037,6 +1037,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateProvider(profile: ProviderProfile, secret: String) = finishOnboarding(profile, secret)
 
+    fun selectModel(newModel: String) {
+        val current = _state.value.provider
+        val updated = current.copy(model = newModel)
+        val secret = getSavedApiKey(current) ?: ""
+        updateProvider(updated, secret)
+    }
+
+    fun selectProviderAndModel(kind: com.jarves.mh.model.ProviderKind, baseUrl: String, model: String, secret: String = "") {
+        val updated = com.jarves.mh.model.ProviderProfile(kind = kind, baseUrl = baseUrl, model = model)
+        val savedSecret = if (secret.isNotBlank()) secret else (getSavedApiKey(updated) ?: "")
+        updateProvider(updated, savedSecret)
+    }
+
     fun finishBackgroundSetup() {
         preferences.backgroundSetupComplete = true
         _state.update { it.copy(backgroundSetupComplete = true) }
