@@ -1505,7 +1505,7 @@ private fun RootScreenHost(
                     state = state,
                     listState = projectsListState,
                     onOpen = viewModel::openProject,
-                    onCreate = viewModel::createProject,
+                    onCreate = { name, path -> viewModel.createProject(name, path) },
                     onCreateQuickProject = viewModel::createQuickProject,
                     onRenameProject = viewModel::renameProject,
                     onDeleteProject = viewModel::deleteProject,
@@ -1513,6 +1513,13 @@ private fun RootScreenHost(
                     onPing = viewModel::pingApi,
                     onToggleTheme = viewModel::toggleTheme,
                     onInstallUpdate = viewModel::installAppUpdate,
+                    onOpenChat = { project, chatId -> viewModel.openProject(project, targetChatId = chatId) },
+                    onPinChat = viewModel::pinChat,
+                    onArchiveChat = viewModel::archiveChat,
+                    onRestoreChat = viewModel::restoreChat,
+                    onDeleteChatPermanently = viewModel::deleteChatPermanently,
+                    onRenameChat = viewModel::renameChat,
+                    onCreateChatForProject = viewModel::createChatForProject,
                 )
                 RootScreen.TERMINAL -> TerminalScreen(
                     lines = terminalLines,
@@ -2147,7 +2154,7 @@ private fun ProjectsScreen(
     state: AppUiState,
     listState: LazyListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() },
     onOpen: (Project) -> Unit,
-    onCreate: (String) -> Unit,
+    onCreate: (String, String) -> Unit,
     onCreateQuickProject: () -> Unit,
     onRenameProject: (String, String) -> Unit,
     onDeleteProject: (String) -> Unit,
@@ -2332,29 +2339,107 @@ private fun ProjectsScreen(
                         onOpen = { onOpen(project) },
                         onRename = { onRenameProject(project.id, it) },
                         onDelete = { onDeleteProject(project.id) },
+                        onOpenChat = onOpenChat,
+                        onPinChat = onPinChat,
+                        onArchiveChat = onArchiveChat,
+                        onRestoreChat = onRestoreChat,
+                        onDeleteChatPermanently = onDeleteChatPermanently,
+                        onRenameChat = onRenameChat,
+                        onCreateChatForProject = onCreateChatForProject,
                     )
                 }
             }
         }
     }
+    var selectedFolderPath by rememberSaveable { mutableStateOf("") }
+    val folderPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            val docId = android.provider.DocumentsContract.getTreeDocumentId(uri) ?: uri.path.orEmpty()
+            val realPath = if (docId.startsWith("primary:")) {
+                "/storage/emulated/0/" + docId.removePrefix("primary:")
+            } else if (docId.startsWith("/tree/primary:")) {
+                "/storage/emulated/0/" + docId.removePrefix("/tree/primary:")
+            } else {
+                docId
+            }
+            selectedFolderPath = realPath
+            if (name.isBlank()) {
+                name = realPath.substringAfterLast('/').ifBlank { "Project" }
+            }
+        }
+    }
+
     if (showCreate) AlertDialog(
         onDismissRequest = { showCreate = false },
-        title = { Text("Create a starter project") },
+        title = { Text("Tạo dự án mới (New Project)", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("Project name") }, singleLine = true)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Tên dự án") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // FOLDER SELECTION ROW
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth().clickable { folderPickerLauncher.launch(null) }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Folder, null, tint = PocketOrange, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (selectedFolderPath.isNotBlank()) selectedFolderPath else "Chọn thư mục trên máy (/sdcard)...",
+                                fontSize = 12.sp,
+                                fontWeight = if (selectedFolderPath.isNotBlank()) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedFolderPath.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (selectedFolderPath.isBlank()) {
+                                Text("Bấm để duyệt thư mục hoặc để trống để tạo tự động", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+
                 if (name.isNotBlank()) {
+                    val finalPath = if (selectedFolderPath.isNotBlank()) selectedFolderPath else "/storage/emulated/0/Projects/${projectSlug(name)}"
                     Text(
-                        "Terminal folder: /workspace/${projectSlug(name)}",
+                        text = "Thư mục dự án: $finalPath",
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onCreate(name); showCreate = false; name = "" }, enabled = name.isNotBlank()) { Text("Create") } },
-        dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalPath = if (selectedFolderPath.isNotBlank()) selectedFolderPath else "/storage/emulated/0/Projects/${projectSlug(name)}"
+                    onCreate(name, finalPath)
+                    showCreate = false
+                    name = ""
+                    selectedFolderPath = ""
+                },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Tạo dự án")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { showCreate = false; selectedFolderPath = "" }) { Text("Hủy") }
+        },
     )
     val update = state.appUpdate
     if (showUpdateDialog && update != null) {
@@ -2936,6 +3021,7 @@ private fun WorkspaceScreen(
                             else Icon(Icons.Default.PlayArrow, "Build and run Android app")
                         }
                     }
+                    IconButton(onClick = { onBack() }) { Icon(Icons.Default.Settings, "Cài đặt") }
                     IconButton(onClick = { showChats = true }) { Icon(Icons.Default.History, "Project chats") }
                     if (state.isRunning) CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp), strokeWidth = 2.dp)
                 },
@@ -2992,7 +3078,8 @@ private fun WorkspaceScreen(
                     currentProvider = state.provider,
                     onSelectModel = onSelectModel,
                     onSelectThinking = onSelectThinking,
-                    customProviders = state.customProviders,
+                    customProviders = state.customProviders.ifEmpty { prefs.loadCustomProviders() },
+                onManageModels = onBack,
                     onSelectCustomModel = onSelectCustomModel,
                 )
                 WorkspaceTab.FILES -> FilesTab(
@@ -3366,6 +3453,7 @@ private fun ChatTab(
     onSelectModel: (String) -> Unit = {},
     onSelectThinking: (String) -> Unit = {},
     customProviders: List<com.jarves.mh.model.CustomProviderConfig> = emptyList(),
+    onManageModels: () -> Unit = {},
     onSelectCustomModel: (com.jarves.mh.model.CustomProviderConfig, com.jarves.mh.model.CustomModelItem) -> Unit = { _, _ -> },
 ) {
     val view = LocalView.current
@@ -3797,7 +3885,7 @@ private fun ChatTab(
                                             .fillMaxWidth()
                                             .clickable {
                                                 showModelMenu = false
-                                                onSelectModel("custom-setup-trigger")
+                                                onManageModels()
                                             }
                                             .padding(vertical = 8.dp, horizontal = 4.dp),
                                         verticalAlignment = Alignment.CenterVertically
