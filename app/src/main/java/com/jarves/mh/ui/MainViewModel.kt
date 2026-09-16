@@ -1075,7 +1075,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectCustomModel(providerConfig: CustomProviderConfig, model: CustomModelItem) {
         val protocol = if (providerConfig.apiFormat == "ANTHROPIC_MESSAGES") {
-            com.jarves.mh.model.ProviderProtocol.ANTHROPIC_MESSAGES
+            com.jarves.mh.model.ProviderProtocol.ANTHROPIC_GATEWAY
         } else {
             com.jarves.mh.model.ProviderProtocol.OPENAI_CHAT
         }
