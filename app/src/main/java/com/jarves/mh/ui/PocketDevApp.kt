@@ -2615,12 +2615,7 @@ private fun ProjectCard(
                                         onClick = { onPinChat(project.id, chat.id, !chat.isPinned) },
                                         modifier = Modifier.size(22.dp)
                                     ) {
-                                        Icon(
-                                            // pin flag
-                                            contentDescription = "Pin",
-                                            tint = if (chat.isPinned) PocketOrange else MaterialTheme.colorScheme.outlineVariant,
-                                            modifier = Modifier.size(15.dp)
-                                        )
+                                        Text(if (chat.isPinned) "📌" else "💬", fontSize = 13.sp)
                                     }
                                     Spacer(Modifier.width(6.dp))
                                     Column(Modifier.weight(1f)) {
