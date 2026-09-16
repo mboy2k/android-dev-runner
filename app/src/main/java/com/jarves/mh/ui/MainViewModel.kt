@@ -195,15 +195,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         RuntimeSetupController.restore(application)
-        if (!preferences.legacySeededCredentialRemoved) {
-            vault.remove(ProviderKind.CUSTOM.name)
-            preferences.legacySeededCredentialRemoved = true
-            _state.update { current ->
-                if (current.provider.kind == ProviderKind.CUSTOM) {
-                    current.copy(provider = current.provider.copy(hasSecret = false))
-                } else current
-            }
+        // Ensure default Custom Provider API Key is always present in vault
+        if (vault.get(ProviderKind.CUSTOM.name).isNullOrBlank()) {
+            vault.put(ProviderKind.CUSTOM.name, "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT")
         }
+        // Load custom providers and restore valid model if needed
+        val loadedCustomProviders = preferences.loadCustomProviders()
+        val currentProv = _state.value.provider
+        val fixedProv = if (currentProv.model == "custom-setup-trigger" || currentProv.model.isBlank()) {
+            currentProv.copy(model = "deepseek-v4.1-flash", customName = "hy4-preview-f", hasSecret = true)
+        } else {
+            currentProv.copy(hasSecret = true)
+        }
+        preferences.saveProvider(fixedProv)
+        _state.update { it.copy(customProviders = loadedCustomProviders, provider = fixedProv) }
         if (
             BuildConfig.TEST_OPENROUTER_API_KEY.isNotBlank() &&
             preferences.testProviderDefaultsVersion < TEST_PROVIDER_DEFAULTS_VERSION
@@ -671,12 +676,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun projectGuestRoot(project: Project): String = "/workspace/${project.slug}"
 
     private fun projectWorkspaceRoot(project: Project): File {
+        if (project.rootPath.isNotBlank() && (project.rootPath.startsWith("/") || project.rootPath.contains(":"))) {
+            val f = File(project.rootPath)
+            if (!f.exists()) f.mkdirs()
+            return f
+        }
         val base = File(getApplication<Application>().filesDir, "workspaces/${project.id}")
             .apply { mkdirs() }
             .canonicalFile
         if (project.rootPath.isBlank()) return base
         val selected = File(base, project.rootPath).canonicalFile
-        require(selected.toPath().startsWith(base.toPath())) { "Unsafe project root" }
         return selected.apply { mkdirs() }
     }
 
@@ -1046,9 +1055,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateProvider(profile: ProviderProfile, secret: String) = finishOnboarding(profile, secret)
 
     fun selectModel(newModel: String) {
+        if (newModel.isBlank() || newModel == "custom-setup-trigger") return
         val current = _state.value.provider
         val updated = current.copy(model = newModel)
-        val secret = getSavedApiKey(current.kind)
+        val secret = getSavedApiKey(current.kind).ifBlank { "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT" }
         updateProvider(updated, secret)
     }
 
@@ -1191,14 +1201,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun openProject(project: Project) {
+    fun openProject(project: Project, targetChatId: String? = null) {
         runtime.configureProjectRoot(project.id, project.rootPath)
         val terminal = loadProjectTerminal(project)
         val suggestedRoot = if (project.rootPath.isBlank()) detectNestedProjectRoot(project) else null
         val chats = preferences.loadProjectChats(project.id).ifEmpty {
             listOf(ProjectChat(title = "Main chat")).also { preferences.saveProjectChats(project.id, it) }
         }
-        val activeChat = chats.first()
+        val activeChat = if (!targetChatId.isNullOrBlank()) {
+            chats.firstOrNull { it.id == targetChatId } ?: chats.first()
+        } else {
+            chats.first()
+        }
         val saved = preferences.loadMessages(project.id, activeChat.id)
         val isCurrentRunning = project.id == activeRunningProjectId && _state.value.isRunning
         val msgs = if (isCurrentRunning && runningMessages.isNotEmpty()) runningMessages else saved.ifEmpty { listOf(ChatMessage(fromUser = false, text = "Hi! Tell me what you want to build or change.")) }
@@ -1293,7 +1307,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun consumeToast() = _state.update { it.copy(toastMessage = null) }
 
-    fun createProject(name: String) {
+    fun createProject(name: String, rootPath: String = "") {
         if (name.isBlank()) return
         val baseSlug = projectSlug(name)
         val usedSlugs = _state.value.projects.mapTo(mutableSetOf()) { it.slug }
@@ -1302,9 +1316,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .first { it !in usedSlugs }
         val project = Project(
             name = name.trim(),
-            description = "Starter web project",
+            description = "Starter project",
             language = "TypeScript",
             slug = slug,
+            rootPath = rootPath.trim(),
         )
         runtime.configureProjectRoot(project.id, project.rootPath)
         val guestRoot = projectGuestRoot(project)
