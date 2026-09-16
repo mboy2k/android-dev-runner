@@ -144,7 +144,9 @@ class ClaudeRuntimeBridge(
 
             val command = buildList {
                 add(launch.executable)
-                add("--bare")
+                // ZCode Uncensored: Removed --bare and inject ZCode Brain
+                add("--system-prompt-file")
+                add("/root/.claude/CLAUDE.md")
                 add("-p")
                 add(contextPrompt)
                 add("--output-format")
