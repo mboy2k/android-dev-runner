@@ -2771,6 +2771,8 @@ private fun WorkspaceScreen(
                         onTerminalOpened()
                         onTerminalPrepare(command)
                     },
+                    currentProvider = state.provider,
+                    onSelectModel = viewModel::selectModel,
                 )
                 WorkspaceTab.FILES -> FilesTab(
                     files = state.workspaceFiles,
@@ -3139,6 +3141,8 @@ private fun ChatTab(
     onRemoveAttachment: (String) -> Unit,
     onOpenAttachment: (ChatAttachment) -> Unit,
     onRunInTerminal: (String) -> Unit,
+    currentProvider: com.jarves.mh.model.ProviderProfile = com.jarves.mh.model.ProviderProfile(),
+    onSelectModel: (String) -> Unit = {},
 ) {
     val view = LocalView.current
     // Keep the screen on while Claude is working in this chat. Released automatically
@@ -3244,6 +3248,118 @@ private fun ChatTab(
                                 onRemove = { onRemoveAttachment(attachment.id) },
                             )
                         }
+                    }
+                }
+
+                var showModelMenu by remember { mutableStateOf(false) }
+                val currentModelLabel = when {
+                    currentProvider.model.isNotBlank() -> currentProvider.model
+                    else -> currentProvider.kind.title
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp, start = 4.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                        modifier = Modifier.clickable { showModelMenu = true },
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(androidx.compose.ui.graphics.Color(0xFF4CAF50), CircleShape),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "${currentProvider.kind.title} / $currentModelLabel",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Select model",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = showModelMenu,
+                        onDismissRequest = { showModelMenu = false },
+                    ) {
+                        Text(
+                            "⚡ CHỌN MODEL NHANH (ZCODE)",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        HorizontalDivider()
+                        
+                        // KiraAI Models
+                        DropdownMenuItem(
+                            text = { Text("⚡ KiraAI: minimax-m3 (Suy luận sâu)") },
+                            onClick = {
+                                onSelectModel("minimax-m3")
+                                showModelMenu = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⚡ KiraAI: deepseek-v4-flash") },
+                            onClick = {
+                                onSelectModel("deepseek-v4-flash")
+                                showModelMenu = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⚡ KiraAI: minimax-m2.7") },
+                            onClick = {
+                                onSelectModel("minimax-m2.7")
+                                showModelMenu = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⚡ Groq: llama-3.3-70b-versatile") },
+                            onClick = {
+                                onSelectModel("llama-3.3-70b-versatile")
+                                showModelMenu = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⚡ OpenRouter: deepseek/deepseek-r1") },
+                            onClick = {
+                                onSelectModel("deepseek/deepseek-r1")
+                                showModelMenu = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⚡ Xiaomi MiMo AI: mimo-x-pro-preview") },
+                            onClick = {
+                                onSelectModel("mimo-x-pro-preview")
+                                showModelMenu = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⚡ OpenCode Zen: nemotron-3-ultra") },
+                            onClick = {
+                                onSelectModel("nemotron-3-ultra")
+                                showModelMenu = false
+                            },
+                        )
                     }
                 }
 
