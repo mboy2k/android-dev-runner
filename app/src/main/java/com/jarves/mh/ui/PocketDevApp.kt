@@ -3276,9 +3276,10 @@ private fun ChatTab(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(bottom = 6.dp, start = 4.dp, end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -3321,71 +3322,132 @@ private fun ChatTab(
                     val thinkingTiers = remember(currentProvider.model) {
                         val m = currentProvider.model.lowercase()
                         when {
-                            m.contains("glm-5") || m.contains("glm-4") -> listOf("Low", "High", "Max")
-                            m.contains("gpt-5") || m.contains("gpt-6") || m.contains("o1") || m.contains("o3") || m.contains("o4") -> listOf("Low", "Medium", "High", "Ultra")
-                            m.contains("deepseek-r1") || m.contains("r1") || m.contains("minimax-m3") || m.contains("reasoner") || m.contains("thinking") || m.contains("nemotron") -> listOf("Low", "Medium", "High", "Max")
-                            m.contains("flash") && !m.contains("thinking") -> emptyList()
-                            else -> listOf("Low", "Medium", "High", "Max")
+                            m.contains("gpt-5") || m.contains("gpt-6") || m.contains("o1") || m.contains("o3") || m.contains("o4") ->
+                                listOf("Low", "Medium", "High", "Ultra")
+                            else ->
+                                listOf("Low", "High", "Max")
                         }
                     }
 
-                    if (thinkingTiers.isNotEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                            modifier = Modifier.clickable { showThinkingMenu = true },
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            ) {
-                                Text(
-                                    text = "🧠 $currentThinkingLevel",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Select thinking tier",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-
-                        DropdownMenu(
-                            expanded = showThinkingMenu,
-                            onDismissRequest = { showThinkingMenu = false },
+                    // Button [🧠 Max ▾] (Photo 3)
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                        modifier = Modifier.clickable { showThinkingMenu = true },
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         ) {
                             Text(
-                                "🧠 MỨC ĐỘ SUY LUẬN (THINKING)",
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                                text = "🧠 $currentThinkingLevel",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
-                            HorizontalDivider()
-                            thinkingTiers.forEach { tier ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(tier, fontWeight = if (tier == currentThinkingLevel) FontWeight.Bold else FontWeight.Normal)
-                                            if (tier == currentThinkingLevel) {
-                                                Spacer(Modifier.width(8.dp))
-                                                Text("✓", color = MaterialTheme.colorScheme.primary)
-                                            }
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Select thinking tier",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = showThinkingMenu,
+                        onDismissRequest = { showThinkingMenu = false },
+                    ) {
+                        thinkingTiers.forEach { tier ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Text(tier, fontWeight = if (tier == currentThinkingLevel) FontWeight.Bold else FontWeight.Normal, fontSize = 13.sp)
+                                        if (tier == currentThinkingLevel) {
+                                            Spacer(Modifier.width(16.dp))
+                                            Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                         }
-                                    },
-                                    onClick = {
-                                        currentThinkingLevel = tier
-                                        onSelectThinking(tier)
-                                        showThinkingMenu = false
-                                    },
-                                )
-                            }
+                                    }
+                                },
+                                onClick = {
+                                    currentThinkingLevel = tier
+                                    onSelectThinking(tier)
+                                    showThinkingMenu = false
+                                },
+                            )
+                        }
+                    }
+
+                    // Button [🛡️ Full access ▾] (Photo 2 - ZCode Mode)
+                    var showModeMenu by remember { mutableStateOf(false) }
+                    var selectedMode by remember { mutableStateOf("Full access") }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                        modifier = Modifier.clickable { showModeMenu = true },
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        ) {
+                            Text(
+                                text = if (selectedMode == "Full access") "🛡️ Full access" else if (selectedMode == "Plan mode") "📋 Plan mode" else if (selectedMode == "Edit automatically") "⚡ Auto edit" else "✋ Ask mode",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Execution mode",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = showModeMenu,
+                        onDismissRequest = { showModeMenu = false },
+                    ) {
+                        val modes = listOf(
+                            Triple("Ask before changes", "Ask before file changes.", "✋"),
+                            Triple("Edit automatically", "Edit files automatically.", "⚡"),
+                            Triple("Plan mode", "Plan before editing.", "📋"),
+                            Triple("Full access", "Run with fewer confirmations.", "🛡️"),
+                        )
+                        modes.forEach { (modeTitle, modeSub, modeIcon) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(modeIcon, fontSize = 16.sp)
+                                        Spacer(Modifier.width(10.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(modeTitle, fontWeight = if (selectedMode == modeTitle) FontWeight.Bold else FontWeight.Medium, fontSize = 13.sp)
+                                            Text(modeSub, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        if (selectedMode == modeTitle) {
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    selectedMode = modeTitle
+                                    showModeMenu = false
+                                },
+                            )
                         }
                     }
 
@@ -3450,6 +3512,23 @@ private fun ChatTab(
                             onClick = {
                                 onSelectModel("nemotron-3-ultra")
                                 showModelMenu = false
+                            },
+                        )
+                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("➕", fontSize = 14.sp)
+                                    Spacer(Modifier.width(8.dp))
+                                    Column {
+                                        Text("+ Add model provider...", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
+                                        Text("Cấu hình Card Provider & Modal Model chuẩn ZCode", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            },
+                            onClick = {
+                                showModelMenu = false
+                                onSelectModel("custom-setup-trigger")
                             },
                         )
                         if (customProviders.isNotEmpty()) {
