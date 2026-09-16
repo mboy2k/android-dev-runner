@@ -13,6 +13,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.time.Instant
+import java.util.UUID
+import com.jarves.mh.model.CustomModelItem
+import com.jarves.mh.model.CustomProviderConfig
+import com.jarves.mh.model.ProviderProtocol
 
 class AppPreferences(private val context: Context) {
     private val preferences = context.getSharedPreferences("pocket_preferences", Context.MODE_PRIVATE)
@@ -70,22 +74,102 @@ class AppPreferences(private val context: Context) {
         }
 
 
+    var systemPromptOverride: String
+        get() = preferences.getString("system_prompt_override", "") ?: ""
+        set(value) { preferences.edit().putString("system_prompt_override", value).apply() }
+
+    var thinkingLevel: String
+        get() = preferences.getString("thinking_level", "Max") ?: "Max"
+        set(value) { preferences.edit().putString("thinking_level", value).apply() }
+
+    fun saveCustomProviders(list: List<CustomProviderConfig>) {
+        val arr = JSONArray()
+        list.forEach { p ->
+            val pObj = JSONObject().apply {
+                put("id", p.id)
+                put("name", p.name)
+                put("baseUrl", p.baseUrl)
+                put("apiKey", p.apiKey)
+                put("apiFormat", p.apiFormat)
+                put("customHeaders", p.customHeaders)
+                val mArr = JSONArray()
+                p.models.forEach { m ->
+                    mArr.put(JSONObject().apply {
+                        put("id", m.id)
+                        put("contextWindow", m.contextWindow)
+                        put("maxOutputTokens", m.maxOutputTokens)
+                        put("supportsImage", m.supportsImage)
+                        put("supportsVideo", m.supportsVideo)
+                        put("supportsPdf", m.supportsPdf)
+                    })
+                }
+                put("models", mArr)
+            }
+            arr.put(pObj)
+        }
+        preferences.edit().putString("custom_providers_json", arr.toString()).apply()
+    }
+
+    fun loadCustomProviders(): List<CustomProviderConfig> {
+        val raw = preferences.getString("custom_providers_json", null) ?: return emptyList()
+        return runCatching {
+            val arr = JSONArray(raw)
+            val result = mutableListOf<CustomProviderConfig>()
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                val mArr = obj.optJSONArray("models") ?: JSONArray()
+                val models = mutableListOf<CustomModelItem>()
+                for (j in 0 until mArr.length()) {
+                    val mObj = mArr.getJSONObject(j)
+                    models += CustomModelItem(
+                        id = mObj.getString("id"),
+                        contextWindow = mObj.optInt("contextWindow", 1000000),
+                        maxOutputTokens = mObj.optInt("maxOutputTokens", 128000),
+                        supportsImage = mObj.optBoolean("supportsImage", false),
+                        supportsVideo = mObj.optBoolean("supportsVideo", false),
+                        supportsPdf = mObj.optBoolean("supportsPdf", false)
+                    )
+                }
+                result += CustomProviderConfig(
+                    id = obj.optString("id", UUID.randomUUID().toString()),
+                    name = obj.optString("name", ""),
+                    baseUrl = obj.optString("baseUrl", ""),
+                    apiKey = obj.optString("apiKey", ""),
+                    apiFormat = obj.optString("apiFormat", "OPENAI_CHAT"),
+                    models = models,
+                    customHeaders = obj.optString("customHeaders", "")
+                )
+            }
+            result
+        }.getOrDefault(emptyList())
+    }
+
     fun saveProvider(profile: ProviderProfile) {
         preferences.edit()
             .putString("provider_kind", profile.kind.name)
             .putString("provider_base_url", profile.baseUrl)
             .putString("provider_model", profile.model)
+            .putString("provider_custom_name", profile.customName)
+            .putString("provider_protocol_override", profile.protocolOverride?.name ?: "")
+            .putString("provider_custom_headers", profile.customHeaders)
+            .putString("provider_thinking_level", profile.thinkingLevel)
             .apply()
     }
 
     fun loadProvider(vault: ApiKeyVault): ProviderProfile {
         val kind = runCatching { ProviderKind.valueOf(preferences.getString("provider_kind", null).orEmpty()) }
             .getOrDefault(ProviderKind.ANTHROPIC)
+        val protoOverride = preferences.getString("provider_protocol_override", null)?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { ProviderProtocol.valueOf(it) }.getOrNull() }
         return ProviderProfile(
             kind = kind,
             baseUrl = preferences.getString("provider_base_url", kind.defaultBaseUrl) ?: kind.defaultBaseUrl,
             model = preferences.getString("provider_model", kind.defaultModel) ?: kind.defaultModel,
             hasSecret = vault.contains(kind.name),
+            customName = preferences.getString("provider_custom_name", "") ?: "",
+            protocolOverride = protoOverride,
+            customHeaders = preferences.getString("provider_custom_headers", "") ?: "",
+            thinkingLevel = preferences.getString("provider_thinking_level", "Max") ?: "Max",
         )
     }
 
