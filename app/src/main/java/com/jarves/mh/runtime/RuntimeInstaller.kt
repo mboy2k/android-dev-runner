@@ -933,6 +933,16 @@ class RuntimeInstaller(private val context: Context) {
             add("/proc")
             add("-b")
             add("/sys")
+            // Direct access to device storage (/sdcard)
+            val externalStorage = File("/storage/emulated/0")
+            if (externalStorage.exists() || File("/sdcard").exists()) {
+                File(rootfs, "sdcard").mkdirs()
+                File(rootfs, "storage/emulated/0").mkdirs()
+                add("-b")
+                add("/storage/emulated/0:/sdcard")
+                add("-b")
+                add("/storage/emulated/0:/storage/emulated/0")
+            }
             // ARM64 Android build tools (notably aapt2) use Bionic's
             // /system/bin/linker64 and, on newer releases, APEX libraries.
             listOf("/system", "/apex", "/vendor", "/product").forEach { hostPath ->
