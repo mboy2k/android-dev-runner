@@ -1040,13 +1040,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectModel(newModel: String) {
         val current = _state.value.provider
         val updated = current.copy(model = newModel)
-        val secret = getSavedApiKey(current) ?: ""
+        val secret = getSavedApiKey(current.kind)
         updateProvider(updated, secret)
     }
 
     fun selectProviderAndModel(kind: com.jarves.mh.model.ProviderKind, baseUrl: String, model: String, secret: String = "") {
         val updated = com.jarves.mh.model.ProviderProfile(kind = kind, baseUrl = baseUrl, model = model)
-        val savedSecret = if (secret.isNotBlank()) secret else (getSavedApiKey(updated) ?: "")
+        val savedSecret = if (secret.isNotBlank()) secret else getSavedApiKey(kind)
         updateProvider(updated, savedSecret)
     }
 
