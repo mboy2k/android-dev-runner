@@ -142,9 +142,9 @@ android {
 
         // the tagged release. Gradle properties may still override Play builds.
 
-        versionCode = 13
+        versionCode = 14
 
-        versionName = "1.0.12"
+        versionName = "1.0.13"
 
         providers.gradleProperty("appVersionCode").orNull?.toIntOrNull()?.let { versionCode = it }
 
