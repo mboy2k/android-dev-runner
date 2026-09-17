@@ -163,7 +163,15 @@ data class AppUiState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var activeRunningProjectId: String? = null
     private var activeRunningChatId: String? = null
-    private var runningMessages: List<ChatMessage> = emptyList()
+    private var isSessionRunning: Boolean = false
+    private var runningSessionId: String? = null
+    private val runningMessages = mutableListOf<ChatMessage>()
+    private val runningLiveProcess = mutableListOf<ActivityItem>()
+    private var runningLiveThinking: Boolean = false
+    private var runningTaskStartedAtMillis: Long? = null
+    private var runningWorkSegmentStartedAtMillis: Long? = null
+    private var runningCurrentTaskRequest: String? = null
+    private var runningActiveThinkingBlockId: Long? = null
 
     private val vault = ApiKeyVault(application)
     private val preferences = AppPreferences(application)
@@ -1213,19 +1221,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             chats.first()
         }
+        val isCurrentRunning = project.id == activeRunningProjectId && isSessionRunning
+        val targetChatMatchesRunning = isCurrentRunning && (activeRunningChatId == null || activeRunningChatId == activeChat.id)
         val saved = preferences.loadMessages(project.id, activeChat.id)
-        val isCurrentRunning = project.id == activeRunningProjectId && _state.value.isRunning
-        val msgs = if (isCurrentRunning && runningMessages.isNotEmpty()) runningMessages else saved.ifEmpty { listOf(ChatMessage(fromUser = false, text = "Hi! Tell me what you want to build or change.")) }
+        val msgs = if (targetChatMatchesRunning && runningMessages.isNotEmpty()) runningMessages.toList() else saved.ifEmpty { listOf(ChatMessage(fromUser = false, text = "Hi! Tell me what you want to build or change.")) }
         _state.update {
             it.copy(
                 activeProject = project,
                 projectChats = chats,
-                activeChatId = if (isCurrentRunning && activeRunningChatId != null) activeRunningChatId else activeChat.id,
+                activeChatId = if (targetChatMatchesRunning && activeRunningChatId != null) activeRunningChatId else activeChat.id,
                 messages = msgs,
-                liveProcess = if (isCurrentRunning) it.liveProcess else emptyList(),
-                liveThinking = if (isCurrentRunning) it.liveThinking else false,
-                taskStartedAtMillis = null,
+                liveProcess = if (targetChatMatchesRunning) runningLiveProcess.toList() else emptyList(),
+                liveThinking = if (targetChatMatchesRunning) runningLiveThinking else false,
+                isRunning = targetChatMatchesRunning,
+                activeSessionId = if (targetChatMatchesRunning) runningSessionId else null,
+                taskStartedAtMillis = if (targetChatMatchesRunning) runningTaskStartedAtMillis else null,
                 taskFinishedAtMillis = null,
+                workSegmentStartedAtMillis = if (targetChatMatchesRunning) runningWorkSegmentStartedAtMillis else null,
+                currentTaskRequest = if (targetChatMatchesRunning) runningCurrentTaskRequest else null,
+                activeThinkingBlockId = if (targetChatMatchesRunning) runningActiveThinkingBlockId else null,
                 changes = emptyList(),
                 workspaceFiles = emptyList(),
                 androidProjectDetected = false,
@@ -1267,8 +1281,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 workspaceFiles = emptyList(),
                 androidProjectDetected = false,
                 filesLoading = false,
-                isRunning = false,
-                activeSessionId = null,
+                isRunning = isSessionRunning,
+                activeSessionId = if (isSessionRunning) runningSessionId else null,
                 pendingApproval = null,
                 projectTerminalLines = emptyList(),
                 projectTerminalLiveOutput = "",
@@ -1780,15 +1794,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         activeRunningProjectId = project.id
         activeRunningChatId = state.value.activeChatId
+        isSessionRunning = true
+        runningSessionId = null
+        runningMessages.clear()
+        runningLiveProcess.clear()
+        val startedAt = System.currentTimeMillis()
+        runningTaskStartedAtMillis = startedAt
+        runningWorkSegmentStartedAtMillis = startedAt
+        runningCurrentTaskRequest = requestText
+        runningLiveThinking = true
+        runningActiveThinkingBlockId = null
+
+        val userMessage = ChatMessage(fromUser = true, text = prompt.trim(), attachments = attachments)
+        val msgsWithUser = _state.value.messages + userMessage
+        runningMessages.addAll(msgsWithUser)
+        val initialThink = ActivityItem("Think", requestPlanningSummary(requestText), false)
+        runningLiveProcess.add(initialThink)
+
         updateActiveChatTitle(requestText)
         _state.update {
-            val startedAt = System.currentTimeMillis()
             it.copy(
-                messages = it.messages + ChatMessage(fromUser = true, text = prompt.trim(), attachments = attachments),
+                messages = msgsWithUser,
                 pendingAttachments = emptyList(),
                 isRunning = true,
                 activity = listOf(ActivityItem("Understanding your request", "Preparing a safe plan", false)) + it.activity,
-                liveProcess = listOf(ActivityItem("Think", requestPlanningSummary(requestText), false)),
+                liveProcess = listOf(initialThink),
                 liveThinking = true,
                 activeThinkingBlockId = null,
                 taskStartedAtMillis = startedAt,
@@ -1821,7 +1851,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopTask() {
-        if (!_state.value.isRunning) return
+        if (!isSessionRunning && !_state.value.isRunning) return
+        isSessionRunning = false
         viewModelScope.launch { runtime.stopActiveSession() }
     }
 
@@ -1952,9 +1983,72 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun onRuntimeEvent(event: RuntimeEvent) {
+        if (!isSessionRunning && !_state.value.isRunning) return
+
+        // 1. Maintain background session cache
+        when (event) {
+            is RuntimeEvent.SessionStarted -> {
+                runningSessionId = event.sessionId
+            }
+            is RuntimeEvent.AssistantDelta -> {
+                val lastMsg = runningMessages.lastOrNull()
+                if (lastMsg != null && !lastMsg.fromUser && lastMsg.workItems.isEmpty() && lastMsg.workedMillis == 0L) {
+                    runningMessages[runningMessages.size - 1] = lastMsg.copy(text = lastMsg.text + event.text)
+                } else {
+                    runningMessages.add(ChatMessage(fromUser = false, text = event.text))
+                }
+            }
+            is RuntimeEvent.ReasoningSummary -> {
+                val summary = event.summary.trim()
+                val existingIndex = runningLiveProcess.indexOfLast { !it.isComplete && it.title == "Think" }
+                if (event.startsNewBlock) {
+                    runningLiveProcess.indices.forEach { index ->
+                        if (!runningLiveProcess[index].isComplete) runningLiveProcess[index] = runningLiveProcess[index].copy(isComplete = true)
+                    }
+                    runningLiveProcess.add(ActivityItem("Think", summary.ifBlank { "Thinking…" }, event.isFinal))
+                } else if (existingIndex >= 0) {
+                    runningLiveProcess[existingIndex] = ActivityItem("Think", summary, event.isFinal)
+                }
+                runningLiveThinking = !event.isFinal
+            }
+            is RuntimeEvent.ToolStarted -> {
+                runningLiveProcess.add(ActivityItem("Running ${event.toolName}", event.detail, false))
+            }
+            is RuntimeEvent.ToolCompleted -> {
+                val runningIndex = runningLiveProcess.indexOfLast {
+                    !it.isComplete && it.title == "Running ${event.toolName}"
+                }
+                if (runningIndex >= 0) {
+                    runningLiveProcess[runningIndex] = ActivityItem("${event.toolName} completed", event.summary, isCommand = event.toolName == "Bash")
+                } else {
+                    runningLiveProcess.add(ActivityItem("${event.toolName} completed", event.summary, isCommand = event.toolName == "Bash"))
+                }
+                runningLiveThinking = false
+            }
+            is RuntimeEvent.SessionCompleted -> {
+                isSessionRunning = false
+                runningLiveThinking = false
+                if (activeRunningProjectId != null && activeRunningChatId != null) {
+                    preferences.saveMessages(activeRunningProjectId!!, activeRunningChatId!!, runningMessages)
+                }
+            }
+            is RuntimeEvent.SessionFailed -> {
+                isSessionRunning = false
+                runningLiveThinking = false
+                runningLiveProcess.add(ActivityItem("Task stopped", event.reason))
+                if (activeRunningProjectId != null && activeRunningChatId != null) {
+                    preferences.saveMessages(activeRunningProjectId!!, activeRunningChatId!!, runningMessages)
+                }
+            }
+            else -> Unit
+        }
+
         _state.update { current ->
-            if (!current.isRunning) {
-                current
+            if (current.activeProject == null || current.activeProject?.id != activeRunningProjectId) {
+                current.copy(
+                    isRunning = isSessionRunning,
+                    activeSessionId = if (isSessionRunning) runningSessionId else null,
+                )
             } else if (current.activeSessionId != null && current.activeSessionId != event.sessionId) {
                 current
             } else when (event) {
@@ -2152,11 +2246,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun persistMessages() {
-        val project = _state.value.activeProject ?: return
-        val chatId = _state.value.activeChatId ?: return
-        val msgs = _state.value.messages
-        viewModelScope.launch(Dispatchers.IO) {
-            preferences.saveMessages(project.id, chatId, msgs)
+        val project = _state.value.activeProject
+        val chatId = _state.value.activeChatId
+        if (project != null && chatId != null) {
+            val msgs = _state.value.messages
+            viewModelScope.launch(Dispatchers.IO) {
+                preferences.saveMessages(project.id, chatId, msgs)
+            }
+        } else if (activeRunningProjectId != null && activeRunningChatId != null && runningMessages.isNotEmpty()) {
+            val pId = activeRunningProjectId!!
+            val cId = activeRunningChatId!!
+            val msgs = runningMessages.toList()
+            viewModelScope.launch(Dispatchers.IO) {
+                preferences.saveMessages(pId, cId, msgs)
+            }
         }
     }
 
