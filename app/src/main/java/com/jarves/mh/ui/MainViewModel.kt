@@ -1847,17 +1847,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         runningSessionId = null
         runningMessages.clear()
         runningLiveProcess.clear()
-        val currentSession = RunningSession(
-            projectId = project.id,
-            chatId = activeChat,
-            sessionId = null,
-            messages = msgsWithUser.toMutableList(),
-            liveProcess = mutableListOf(initialThink),
-            liveThinking = true,
-            startedAtMillis = startedAt,
-            requestText = requestText,
-        )
-        runningSessions[activeChat] = currentSession
+
         val startedAt = System.currentTimeMillis()
         runningTaskStartedAtMillis = startedAt
         runningWorkSegmentStartedAtMillis = startedAt
@@ -1870,6 +1860,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         runningMessages.addAll(msgsWithUser)
         val initialThink = ActivityItem("Think", requestPlanningSummary(requestText), false)
         runningLiveProcess.add(initialThink)
+
+        val currentSession = RunningSession(
+            projectId = project.id,
+            chatId = activeChat,
+            sessionId = null,
+            messages = msgsWithUser.toMutableList(),
+            liveProcess = mutableListOf(initialThink),
+            liveThinking = true,
+            startedAtMillis = startedAt,
+            requestText = requestText,
+        )
+        runningSessions[activeChat] = currentSession
 
         updateActiveChatTitle(requestText)
         _state.update {
