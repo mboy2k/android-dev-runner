@@ -179,6 +179,18 @@ class AppPreferences(private val context: Context) {
         }
     }
 
+    fun saveProvider(profile: ProviderProfile) {
+        preferences.edit()
+            .putString("provider_kind", profile.kind.name)
+            .putString("provider_base_url", profile.baseUrl)
+            .putString("provider_model", profile.model)
+            .putString("provider_custom_name", profile.customName)
+            .putString("provider_protocol_override", profile.protocolOverride?.name ?: "")
+            .putString("provider_custom_headers", profile.customHeaders)
+            .putString("provider_thinking_level", profile.thinkingLevel)
+            .apply()
+    }
+
     fun loadProvider(vault: ApiKeyVault): ProviderProfile {
         if (!preferences.getBoolean("provider_v4_reset", false)) {
             vault.put(ProviderKind.CUSTOM.name, "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT")
