@@ -91,12 +91,12 @@ fun SettingsScreenModern(
                             text = currentCategory?.title ?: "Cài đặt ZCode Mobile",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            color = Color(0xFFF8FAFC)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = currentCategory?.subtitle ?: "Trung tâm quản trị bộ não, model & hệ sinh thái",
                             fontSize = 11.sp,
-                            color = Color(0xFF94A3B8),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -117,10 +117,10 @@ fun SettingsScreenModern(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0B0E14)),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface, titleContentColor = MaterialTheme.colorScheme.onSurface),
             )
         },
-        containerColor = Color(0xFF0B0E14)
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (currentCategory == null) {
@@ -195,8 +195,8 @@ private fun SettingsCategoryCard(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFF131821),
-        border = BorderStroke(1.dp, Color(0xFF222A38)),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Row(
@@ -205,8 +205,8 @@ private fun SettingsCategoryCard(
         ) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF1B222D),
-                border = BorderStroke(1.dp, Color(0xFF2A3240)),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -216,20 +216,20 @@ private fun SettingsCategoryCard(
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(cat.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF8FAFC))
+                    Text(cat.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.width(8.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFF1E2638)
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
-                        Text(cat.badge, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF38BDF8), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                        Text(cat.badge, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                     }
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(cat.subtitle, fontSize = 12.sp, color = Color(0xFF94A3B8), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(cat.subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.ChevronRight, null, tint = Color(0xFF64748B), modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -278,17 +278,17 @@ private fun ModelProvidersSubPage(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Danh sách Nhà cung cấp", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFF1F5F9))
-                OutlinedButton(
+                Text("Danh sách Nhà cung cấp", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                Button(
                     onClick = { showAddProviderDialog = true },
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, PocketOrange),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                    modifier = Modifier.height(34.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PocketOrange),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.height(36.dp)
                 ) {
-                    Icon(Icons.Default.Add, null, tint = PocketOrange, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Thêm Provider", fontSize = 12.sp, color = PocketOrange, fontWeight = FontWeight.Bold)
+                    Text("+ Thêm Provider", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -306,8 +306,8 @@ private fun ModelProvidersSubPage(
                             { Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp)) }
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF1E2638),
-                            selectedLabelColor = Color(0xFF38BDF8)
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
@@ -318,52 +318,52 @@ private fun ModelProvidersSubPage(
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF131821),
-                border = BorderStroke(1.dp, Color(0xFF222A38)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Cấu hình: $name", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF8FAFC), modifier = Modifier.weight(1f))
+                        Text("Cấu hình: $name", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                         if (provList.size > 1 && activeProv != null) {
                             IconButton(onClick = {
                                 onDeleteProvider(activeProv.id)
                                 provList = provList.filterNot { it.id == activeProv.id }
                                 selectedProvId = provList.firstOrNull()?.id ?: ""
                             }) {
-                                Icon(Icons.Default.Delete, "Xóa", tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Delete, "Xóa", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                             }
                         }
                     }
                     Spacer(Modifier.height(10.dp))
 
-                    Text("Tên Provider", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                    Text("Tên Provider", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF6366F1),
-                            unfocusedBorderColor = Color(0xFF252A3C)
+                            focusedBorderColor = PocketOrange,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                         )
                     )
 
                     Spacer(Modifier.height(10.dp))
-                    Text("Base URL (Endpoint API)", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                    Text("Base URL (Endpoint API)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedTextField(
                         value = baseUrl,
                         onValueChange = { baseUrl = it },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF6366F1),
-                            unfocusedBorderColor = Color(0xFF252A3C)
+                            focusedBorderColor = PocketOrange,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                         )
                     )
 
                     Spacer(Modifier.height(10.dp))
-                    Text("API Key", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                    Text("API Key", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedTextField(
                         value = apiKey,
                         onValueChange = { apiKey = it },
@@ -376,13 +376,13 @@ private fun ModelProvidersSubPage(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF6366F1),
-                            unfocusedBorderColor = Color(0xFF252A3C)
+                            focusedBorderColor = PocketOrange,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                         )
                     )
 
                     Spacer(Modifier.height(10.dp))
-                    Text("Định dạng API (API Format)", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                    Text("Định dạng API (API Format)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Box {
                         OutlinedTextField(
                             value = apiFormat,
@@ -395,8 +395,8 @@ private fun ModelProvidersSubPage(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF6366F1),
-                                unfocusedBorderColor = Color(0xFF252A3C)
+                                focusedBorderColor = PocketOrange,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                             )
                         )
                         DropdownMenu(expanded = showFormatMenu, onDismissRequest = { showFormatMenu = false }) {
@@ -427,7 +427,7 @@ private fun ModelProvidersSubPage(
                         },
                         modifier = Modifier.fillMaxWidth().height(44.dp),
                         shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1))
+                        colors = ButtonDefaults.buttonColors(containerColor = PocketOrange)
                     ) {
                         Text("💾 Lưu Cấu hình Provider", fontWeight = FontWeight.Bold, color = Color.White)
                     }
@@ -442,11 +442,17 @@ private fun ModelProvidersSubPage(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Danh sách Models của Provider (${models.size})", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFF1F5F9))
-                TextButton(onClick = { showAddModelDialog = true }) {
-                    Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = Color(0xFF38BDF8))
+                Text("Danh sách Models của Provider (${models.size})", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                Button(
+                    onClick = { showAddModelDialog = true },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PocketOrange),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Thêm model", color = Color(0xFF38BDF8), fontSize = 12.sp)
+                    Text("+ Thêm model", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -456,15 +462,15 @@ private fun ModelProvidersSubPage(
             val testResult = testResults[m.id]
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF161B26),
-                border = BorderStroke(1.dp, Color(0xFF252A3C)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(m.id, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFF8FAFC))
-                            Text("Context: ${m.contextWindow / 1000}k · Max out: ${m.maxOutputTokens / 1000}k", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                            Text(m.id, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Context: ${m.contextWindow / 1000}k · Max out: ${m.maxOutputTokens / 1000}k", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(onClick = {
                             coroutineScope.launch {
@@ -477,7 +483,7 @@ private fun ModelProvidersSubPage(
                             if (isTesting) {
                                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = PocketOrange)
                             } else {
-                                Icon(Icons.Default.Bolt, "Ping", tint = Color(0xFF38BDF8), modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Bolt, "Ping", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                             }
                         }
                         IconButton(onClick = {
@@ -486,20 +492,20 @@ private fun ModelProvidersSubPage(
                                 onSaveProvider(activeProv.copy(models = models))
                             }
                         }) {
-                            Icon(Icons.Default.Delete, "Xóa", tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Delete, "Xóa", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                         }
                     }
                     if (testResult != null) {
                         Spacer(Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (testResult.first) Color(0xFF064E3B) else Color(0xFF450A0A),
+                            color = if (testResult.first) Color(0xFF10B981).copy(alpha = 0.15f) else MaterialTheme.colorScheme.errorContainer,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 testResult.second,
                                 fontSize = 11.sp,
-                                color = if (testResult.first) Color(0xFF34D399) else Color(0xFFF87171),
+                                color = if (testResult.first) Color(0xFF10B981) else MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
@@ -549,16 +555,16 @@ private fun SkillsSubPage(appPrefs: AppPreferences) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text("Các kỹ năng của ZCode Agent (${skills.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF8FAFC))
-            Text("Bật/tắt kỹ năng sẽ tự động kích hoạt vào bộ não của Claude Code.", fontSize = 12.sp, color = Color(0xFF94A3B8))
+            Text("Các kỹ năng của ZCode Agent (${skills.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+            Text("Bật/tắt kỹ năng sẽ tự động kích hoạt vào bộ não của Claude Code.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
         }
 
         items(skills) { s ->
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF131821),
-                border = BorderStroke(1.dp, if (s.isEnabled) Color(0xFF252A3C) else Color(0xFF1E222D)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, if (s.isEnabled) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -566,9 +572,9 @@ private fun SkillsSubPage(appPrefs: AppPreferences) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(s.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = if (s.isEnabled) Color(0xFFF1F5F9) else Color(0xFF64748B))
+                        Text(s.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = if (s.isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(2.dp))
-                        Text(s.description, fontSize = 11.sp, color = Color(0xFF94A3B8), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Text(s.description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                     Spacer(Modifier.width(10.dp))
                     Switch(
@@ -579,7 +585,7 @@ private fun SkillsSubPage(appPrefs: AppPreferences) {
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF6366F1)
+                            checkedTrackColor = PocketOrange
                         )
                     )
                 }
@@ -601,30 +607,30 @@ private fun SubagentsSubPage(appPrefs: AppPreferences) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Các Đặc Vụ Chuyên Trách (${subagents.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF8FAFC))
-            Text("Subagents chạy song song dưới nền để bóc tách tác vụ phức tạp.", fontSize = 12.sp, color = Color(0xFF94A3B8))
+            Text("Các Đặc Vụ Chuyên Trách (${subagents.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+            Text("Subagents chạy song song dưới nền để bóc tách tác vụ phức tạp.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
         }
 
         items(subagents) { sa ->
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFF131821),
-                border = BorderStroke(1.dp, Color(0xFF252A3C)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(sa.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF38BDF8), modifier = Modifier.weight(1f))
+                        Text(sa.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFF1E2638)
+                            color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
-                            Text(sa.toolsSummary, fontSize = 10.sp, color = Color(0xFF94A3B8), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                            Text(sa.toolsSummary, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                         }
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text(sa.description, fontSize = 12.sp, color = Color(0xFFE2E8F0))
+                    Text(sa.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
@@ -648,8 +654,8 @@ private fun ClaudeMdSubPage(appPrefs: AppPreferences) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Hiến Pháp Bộ Não ZCode (CLAUDE.md)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF8FAFC))
-            Text("Tự động bơm vào Claude Code trước mỗi session: Xưng em - gọi Sếp, Uncensored 100%, Skills.", fontSize = 12.sp, color = Color(0xFF94A3B8))
+            Text("Hiến Pháp Bộ Não ZCode (CLAUDE.md)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+            Text("Tự động bơm vào Claude Code trước mỗi session: Xưng em - gọi Sếp, Uncensored 100%, Skills.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         item {
@@ -657,10 +663,10 @@ private fun ClaudeMdSubPage(appPrefs: AppPreferences) {
                 value = claudeMdContent,
                 onValueChange = { claudeMdContent = it; banner = null },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 280.dp, max = 450.dp),
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color(0xFFE2E8F0)),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF6366F1),
-                    unfocusedBorderColor = Color(0xFF252A3C)
+                    focusedBorderColor = PocketOrange,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                 )
             )
         }
@@ -669,10 +675,10 @@ private fun ClaudeMdSubPage(appPrefs: AppPreferences) {
             item {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF064E3B),
+                    color = Color(0xFF10B981).copy(alpha = 0.15f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(banner!!, fontSize = 12.sp, color = Color(0xFF34D399), modifier = Modifier.padding(10.dp))
+                    Text(banner!!, fontSize = 12.sp, color = Color(0xFF10B981), modifier = Modifier.padding(10.dp))
                 }
             }
         }
@@ -687,9 +693,9 @@ private fun ClaudeMdSubPage(appPrefs: AppPreferences) {
                     },
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFF475569))
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurfaceVariant)
                 ) {
-                    Text("🔄 Khôi phục chuẩn", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                    Text("🔄 Khôi phục chuẩn", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Button(
@@ -699,7 +705,7 @@ private fun ClaudeMdSubPage(appPrefs: AppPreferences) {
                     },
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1))
+                    colors = ButtonDefaults.buttonColors(containerColor = PocketOrange)
                 ) {
                     Text("💾 Lưu CLAUDE.md", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
@@ -733,13 +739,13 @@ private fun SystemAppearanceSubPage(
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF131821),
-                border = BorderStroke(1.dp, Color(0xFF222A38)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Chế độ Giao diện (Theme)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF8FAFC))
-                    Text("ZCode Mobile tối ưu cho phong cách Dark Modern Obsidian.", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                    Text("Chế độ Giao diện (Theme)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text("ZCode Mobile tối ưu cho phong cách Dark Modern Obsidian.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(12.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -754,7 +760,7 @@ private fun SystemAppearanceSubPage(
                                 label = { Text(label, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = PocketOrange,
-                                    selectedLabelColor = Color(0xFF1F2937)
+                                    selectedLabelColor = MaterialTheme.colorScheme.surfaceVariant
                                 )
                             )
                         }
@@ -767,16 +773,16 @@ private fun SystemAppearanceSubPage(
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF131821),
-                border = BorderStroke(1.dp, Color(0xFF222A38)),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Môi trường Linux PRoot", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF8FAFC))
+                    Text("Môi trường Linux PRoot", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(8.dp))
-                    Text("Kiến trúc: ARM64 (aarch64)", fontSize = 12.sp, color = Color(0xFF94A3B8))
-                    Text("Hệ điều hành: Ubuntu PRoot Container", fontSize = 12.sp, color = Color(0xFF94A3B8))
-                    Text("Mã nguồn dự án: /storage/emulated/0/.Zcode/projects/", fontSize = 12.sp, color = Color(0xFF38BDF8))
+                    Text("Kiến trúc: ARM64 (aarch64)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Hệ điều hành: Ubuntu PRoot Container", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Mã nguồn dự án: /storage/emulated/0/.Zcode/projects/", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = { onClearTerminal(); terminalCleared = true },
