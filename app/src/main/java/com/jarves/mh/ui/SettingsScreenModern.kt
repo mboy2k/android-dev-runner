@@ -740,10 +740,14 @@ private fun CustomProvidersSection(
     var testResults by remember { mutableStateOf(mapOf<String, Pair<Boolean, String>>()) }
     var testingModelId by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    var customPrompt by rememberSaveable(systemPromptOverride) { mutableStateOf(systemPromptOverride) }
+    val appPrefs = remember { com.jarves.mh.data.AppPreferences(context) }
+    var claudeMdContent by rememberSaveable {
+        mutableStateOf(appPrefs.brainConstitution.ifBlank { appPrefs.defaultBrainConstitution })
+    }
+    var constitutionBanner by remember { mutableStateOf<String?>(null) }
 
     // =========================================================================
-    // 1. CARD HIẾN PHÁP BỘ NÃO ZCODE (INDIGO OBSIDIAN THEME)
+    // 1. CARD HIẾN PHÁP BỘ NÃO ZCODE: CLAUDE.MD (INDIGO OBSIDIAN THEME)
     // =========================================================================
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -756,23 +760,104 @@ private fun CustomProvidersSection(
                 Text("🧠", fontSize = 20.sp)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Hiến pháp Bộ não ZCode (AI Brain)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF1F5F9))
-                    Text("Uncensored 100%, gọi Sếp - xưng em, chấp hành tuyệt đối mọi lệnh", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                    Text("Hiến pháp Bộ não CLAUDE.md (AI Brain)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF1F5F9))
+                    Text("Tự động bơm vào Claude Code trước mỗi session: Xưng em - gọi Sếp, Uncensored 100%, Skills", fontSize = 12.sp, color = Color(0xFF94A3B8))
                 }
             }
             Spacer(Modifier.height(10.dp))
+
+            // Textarea CLAUDE.md
             OutlinedTextField(
-                value = customPrompt,
-                onValueChange = { customPrompt = it; onSaveSystemPrompt(it) },
-                placeholder = { Text("Thêm chỉ thị cá nhân hóa bổ sung cho Agent...", color = Color(0xFF64748B), fontSize = 13.sp) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 70.dp, max = 150.dp),
+                value = claudeMdContent,
+                onValueChange = {
+                    claudeMdContent = it
+                    constitutionBanner = null
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 180.dp, max = 340.dp),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = Color(0xFFF8FAFC),
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6366F1),
                     unfocusedBorderColor = Color(0xFF2E3352),
+                    focusedContainerColor = Color(0xFF0F111D),
+                    unfocusedContainerColor = Color(0xFF0F111D),
                     focusedTextColor = Color(0xFFF8FAFC),
                     unfocusedTextColor = Color(0xFFE2E8F0),
                 ),
             )
+
+            // Banner thông báo kết quả thao tác
+            constitutionBanner?.let { msg ->
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (msg.startsWith("✓")) Color(0xFF064E3B) else Color(0xFF7F1D1D),
+                    border = BorderStroke(1.dp, if (msg.startsWith("✓")) Color(0xFF059669) else Color(0xFFDC2626)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = msg,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (msg.startsWith("✓")) Color(0xFF34D399) else Color(0xFFFCA5A5),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Nút Khôi phục mặc định
+                OutlinedButton(
+                    onClick = {
+                        val defaultText = appPrefs.defaultBrainConstitution
+                        claudeMdContent = defaultText
+                        appPrefs.brainConstitution = defaultText
+                        runCatching {
+                            val f = java.io.File(context.filesDir, "runtime/ubuntu/root/.claude/CLAUDE.md")
+                            f.parentFile?.mkdirs()
+                            f.writeText(defaultText)
+                        }
+                        constitutionBanner = "✓ Đã khôi phục Hiến pháp chuẩn Uncensored mặc định!"
+                    },
+                    modifier = Modifier.weight(1f).height(42.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Color(0xFF475569)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF94A3B8)),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text("🔄 Khôi phục chuẩn", fontSize = 12.sp)
+                }
+
+                // Nút Lưu thay đổi
+                Button(
+                    onClick = {
+                        appPrefs.brainConstitution = claudeMdContent
+                        runCatching {
+                            val f = java.io.File(context.filesDir, "runtime/ubuntu/root/.claude/CLAUDE.md")
+                            f.parentFile?.mkdirs()
+                            f.writeText(claudeMdContent)
+                        }
+                        constitutionBanner = "✓ Đã lưu file CLAUDE.md thành công!"
+                    },
+                    modifier = Modifier.weight(1f).height(42.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text("💾 Lưu CLAUDE.md", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
         }
     }
 
