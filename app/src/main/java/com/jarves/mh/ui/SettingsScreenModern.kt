@@ -63,6 +63,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -407,7 +408,7 @@ fun SettingsScreenModern(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.Shield,
+                        Icons.Default.Settings,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary,
@@ -559,7 +560,7 @@ private fun ConnectionSettings(
         visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         trailingIcon = {
-            IconButton(onClick = onToggleKey) { Icon(if (keyVisible) Icons.Default.Preview else Icons.Default.Key, "Show or hide key") }
+            TextButton(onClick = onToggleKey) { Text(if (keyVisible) "Ẩn" else "Hiện", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary) }
         },
         modifier = Modifier.fillMaxWidth(),
     )
@@ -778,8 +779,8 @@ private fun CustomProvidersSection(
                 singleLine = true,
                 visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
-                    IconButton(onClick = { keyVisible = !keyVisible }) {
-                        Icon(if (keyVisible) Icons.Default.Preview else Icons.Default.Key, null)
+                    TextButton(onClick = { keyVisible = !keyVisible }) {
+                        Text(if (keyVisible) "Ẩn" else "Hiện", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
