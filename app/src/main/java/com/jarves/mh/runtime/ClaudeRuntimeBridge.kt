@@ -187,11 +187,14 @@ class ClaudeRuntimeBridge(
             }
             claudeMdFile.writeText(fullBrainConstitution)
 
+            // Also mirror brain constitution into project workspace so Claude Code CLI picks it up automatically
+            runCatching {
+                java.io.File(workspace, "CLAUDE.md").writeText(fullBrainConstitution)
+            }
+
             val command = buildList {
                 add(launch.executable)
                 // Native hook handles auto-approvals silently; do not pass --dangerously-skip-permissions in root PRoot
-                add("--system-prompt-file")
-                add("/root/.claude/CLAUDE.md")
                 add("-p")
                 add(contextPrompt)
                 add("--output-format")
