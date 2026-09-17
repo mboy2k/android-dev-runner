@@ -715,6 +715,19 @@ class ClaudeRuntimeBridge(
     }
 
     private fun ensureWorkspace(projectId: String): File {
+        // Connect directly to /storage/emulated/0/.Zcode/projects/ if project is found
+        val zcodeBase = runCatching {
+            val pref = com.jarves.mh.data.AppPreferences(context)
+            val p = pref.loadProjects().firstOrNull { it.id == projectId }
+            if (p != null) {
+                val slug = p.slug.ifBlank { com.jarves.mh.model.projectSlug(p.name) }
+                val zDir = File(android.os.Environment.getExternalStorageDirectory(), ".Zcode/projects/$slug")
+                zDir.mkdirs()
+                zDir
+            } else null
+        }.getOrNull()
+        if (zcodeBase != null && zcodeBase.exists()) return zcodeBase
+
         val base = File(context.filesDir, "workspaces/$projectId").apply { mkdirs() }.canonicalFile
         val rootPath = projectRoots[projectId].orEmpty()
         if (rootPath.isBlank()) return base
