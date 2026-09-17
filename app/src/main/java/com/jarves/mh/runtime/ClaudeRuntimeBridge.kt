@@ -157,23 +157,23 @@ class ClaudeRuntimeBridge(
                 appendLine()
 
                 // Inject active Skills
-                val activeSkills = pref.loadSkills().filter { it.enabled }
+                val activeSkills = pref.loadSkills().filter { it.isEnabled }
                 if (activeSkills.isNotEmpty()) {
                     appendLine("## 🛠️ CÁC KỸ NĂNG ĐANG KÍCH HOẠT (ACTIVE SKILLS):")
                     activeSkills.forEach { s ->
                         appendLine("### Kỹ năng: ${s.name} [${s.id}]")
-                        appendLine(s.prompt)
+                        appendLine(s.description)
                         appendLine()
                     }
                 }
 
                 // Inject active Subagents
-                val activeSubagents = pref.loadSubagents().filter { it.enabled }
+                val activeSubagents = pref.loadSubagents()
                 if (activeSubagents.isNotEmpty()) {
                     appendLine("## 🤖 CÁC SUBAGENTS ĐANG HOẠT ĐỘNG (ACTIVE SUBAGENTS):")
                     activeSubagents.forEach { sa ->
-                        appendLine("### Subagent: ${sa.name} [Vai trò: ${sa.role}]")
-                        appendLine(sa.systemPrompt)
+                        appendLine("### Subagent: ${sa.name} [Công cụ: ${sa.toolsSummary}]")
+                        appendLine(sa.description)
                         appendLine()
                     }
                 }
