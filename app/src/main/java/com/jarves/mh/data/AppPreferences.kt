@@ -121,6 +121,11 @@ class AppPreferences(private val context: Context) {
         preferences.edit().putString("custom_providers_json", arr.toString()).apply()
     }
 
+    fun deleteCustomProvider(id: String) {
+        val remaining = loadCustomProviders().filterNot { it.id == id }
+        saveCustomProviders(remaining)
+    }
+
     fun loadCustomProviders(): List<CustomProviderConfig> {
         val cleanupDone = preferences.getBoolean("custom_providers_wipe_v6", false)
         val raw = if (!cleanupDone) null else preferences.getString("custom_providers_json", null)
