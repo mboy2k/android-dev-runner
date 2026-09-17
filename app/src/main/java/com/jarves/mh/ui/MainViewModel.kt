@@ -694,6 +694,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (!f.exists()) f.mkdirs()
             return f
         }
+        // Direct integration with /storage/emulated/0/.Zcode/projects/
+        val slug = project.slug.ifBlank { com.jarves.mh.model.projectSlug(project.name) }
+        val zcodeDir = runCatching {
+            val root = File(android.os.Environment.getExternalStorageDirectory(), ".Zcode/projects/$slug")
+            root.mkdirs()
+            root
+        }.getOrNull()
+        if (zcodeDir != null && (zcodeDir.exists() || zcodeDir.mkdirs())) {
+            return zcodeDir
+        }
         val base = File(getApplication<Application>().filesDir, "workspaces/${project.id}")
             .apply { mkdirs() }
             .canonicalFile
