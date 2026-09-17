@@ -3,6 +3,7 @@ package com.jarves.mh.ui
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.jarves.mh.ui.theme.PocketGreen
 
 import androidx.compose.material.icons.filled.Add
@@ -705,24 +706,28 @@ private fun CustomProvidersSection(
     onSaveSystemPrompt: (String) -> Unit,
 ) {
     val activeProv = customProviders.firstOrNull()
-    var name by rememberSaveable { mutableStateOf(activeProv?.name ?: "Workbuddy") }
+    var name by rememberSaveable { mutableStateOf(activeProv?.name ?: "WorkBuddy VPS2") }
     var baseUrl by rememberSaveable { mutableStateOf(activeProv?.baseUrl ?: "http://138.2.95.239:8787/v1") }
     var apiKey by rememberSaveable { mutableStateOf(activeProv?.apiKey ?: "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT") }
     var keyVisible by rememberSaveable { mutableStateOf(false) }
     var apiFormat by rememberSaveable { mutableStateOf(activeProv?.apiFormat ?: "OPENAI_CHAT") }
     var showFormatMenu by remember { mutableStateOf(false) }
     var customHeaders by rememberSaveable { mutableStateOf(activeProv?.customHeaders ?: "") }
+
+    val defaultWbModels = listOf(
+        CustomModelItem(id = "hy4-preview-f", contextWindow = 1000000, maxOutputTokens = 64000, supportsImage = true),
+        CustomModelItem(id = "hy4-preview", contextWindow = 1000000, maxOutputTokens = 64000, supportsImage = true),
+        CustomModelItem(id = "deepseek-v4.1-flash", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true)
+    )
+
     var models by remember {
         mutableStateOf(
-            if (customProviders.isNotEmpty()) customProviders.first().models
-            else listOf(
-                CustomModelItem(id = "default-model", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                CustomModelItem(id = "gpt-5.5", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                CustomModelItem(id = "gemini-3.5-flash", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                CustomModelItem(id = "deepseek-v3-2-volc", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                CustomModelItem(id = "fast-model", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                CustomModelItem(id = "workbuddy", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true)
-            )
+            if (customProviders.isNotEmpty() && customProviders.first().models.isNotEmpty()) {
+                val clean = customProviders.first().models.filterNot {
+                    it.id in listOf("default-model", "gpt-5.5", "gemini-3.5-flash", "fast-model", "deepseek-v3-2-volc", "workbuddy")
+                }
+                if (clean.isNotEmpty()) clean else defaultWbModels
+            } else defaultWbModels
         )
     }
 
@@ -730,90 +735,133 @@ private fun CustomProvidersSection(
     var editingModelItem by remember { mutableStateOf<CustomModelItem?>(null) }
     var editingModelIndex by remember { mutableStateOf(-1) }
 
-    // Test connection results map: modelId -> Pair(isSuccess, message)
     var testResults by remember { mutableStateOf(mapOf<String, Pair<Boolean, String>>()) }
     var testingModelId by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
-
     var customPrompt by rememberSaveable(systemPromptOverride) { mutableStateOf(systemPromptOverride) }
 
-    // System Prompt Override / ZCode Brain Card
+    // =========================================================================
+    // 1. CARD HIẾN PHÁP BỘ NÃO ZCODE (INDIGO OBSIDIAN THEME)
+    // =========================================================================
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF131525),
+        border = BorderStroke(1.dp, Color(0xFF2E3352)),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
     ) {
-        Column(Modifier.padding(14.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("🧠", fontSize = 18.sp)
-                Spacer(Modifier.width(8.dp))
+                Text("🧠", fontSize = 20.sp)
+                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Hiến pháp Bộ não ZCode (AI Brain)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("Áp dụng Uncensored, gọi Sếp - xưng em cho mọi phiên chat", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Hiến pháp Bộ não ZCode (AI Brain)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF1F5F9))
+                    Text("Uncensored 100%, gọi Sếp - xưng em, chấp hành tuyệt đối mọi lệnh", fontSize = 12.sp, color = Color(0xFF94A3B8))
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = customPrompt,
                 onValueChange = { customPrompt = it; onSaveSystemPrompt(it) },
-                placeholder = { Text("Chỉ thị hệ thống bổ sung (tùy chọn)...") },
+                placeholder = { Text("Thêm chỉ thị cá nhân hóa bổ sung cho Agent...", color = Color(0xFF64748B), fontSize = 13.sp) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 70.dp, max = 150.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF6366F1),
+                    unfocusedBorderColor = Color(0xFF2E3352),
+                    focusedTextColor = Color(0xFFF8FAFC),
+                    unfocusedTextColor = Color(0xFFE2E8F0),
+                ),
             )
         }
     }
 
-    // Provider Configuration Card
+    // =========================================================================
+    // 2. CARD CẤU HÌNH NHÀ CUNG CẤP (PROVIDER CONFIGURATION)
+    // =========================================================================
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF12141F),
+        border = BorderStroke(1.dp, Color(0xFF252A3C)),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(14.dp)) {
-            Text("Thêm / Cấu hình Provider", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Spacer(Modifier.height(10.dp))
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Cấu hình Nhà Cung Cấp Model", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFFF8FAFC), modifier = Modifier.weight(1f))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF064E3B),
+                    border = BorderStroke(1.dp, Color(0xFF059669)),
+                ) {
+                    Text("Đang bật", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF34D399), modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+                }
+            }
+            Spacer(Modifier.height(14.dp))
 
+            // Tên Provider
+            Text("Tên Provider", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
+            Spacer(Modifier.height(4.dp))
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Tên Provider (ví dụ: Workbuddy)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF6366F1),
+                    unfocusedBorderColor = Color(0xFF252A3C),
+                    focusedTextColor = Color(0xFFF8FAFC),
+                    unfocusedTextColor = Color(0xFFE2E8F0),
+                ),
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
+            // Base URL
+            Text("Base URL (Endpoint API)", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
+            Spacer(Modifier.height(4.dp))
             OutlinedTextField(
                 value = baseUrl,
                 onValueChange = { baseUrl = it },
-                label = { Text("Base URL (Endpoint API)") },
-                placeholder = { Text("https://your-endpoint/v1") },
+                placeholder = { Text("http://138.2.95.239:8787/v1", color = Color(0xFF64748B)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF6366F1),
+                    unfocusedBorderColor = Color(0xFF252A3C),
+                    focusedTextColor = Color(0xFFF8FAFC),
+                    unfocusedTextColor = Color(0xFFE2E8F0),
+                ),
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
+            // API Key
+            Text("API Key", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
+            Spacer(Modifier.height(4.dp))
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
-                label = { Text("API Key") },
                 singleLine = true,
                 visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     TextButton(onClick = { keyVisible = !keyVisible }) {
-                        Text(if (keyVisible) "Ẩn" else "Hiện", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                        Text(if (keyVisible) "Ẩn" else "Hiện", fontSize = 12.sp, color = Color(0xFF818CF8), fontWeight = FontWeight.Bold)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF6366F1),
+                    unfocusedBorderColor = Color(0xFF252A3C),
+                    focusedTextColor = Color(0xFFF8FAFC),
+                    unfocusedTextColor = Color(0xFFE2E8F0),
+                ),
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
             // Dropdown API format
-            Text("Định dạng API (Format)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Định dạng API (API format)", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
             Spacer(Modifier.height(4.dp))
             Box(Modifier.fillMaxWidth()) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    border = BorderStroke(1.dp, Color(0xFF252A3C)),
+                    color = Color(0xFF0F111A),
                     modifier = Modifier.fillMaxWidth().clickable { showFormatMenu = true },
                 ) {
                     Row(
@@ -824,8 +872,9 @@ private fun CustomProvidersSection(
                             if (apiFormat == "OPENAI_CHAT") "Chat completions (/chat/completions) [OpenAI]" else "Anthropic Messages (/v1/messages) [Anthropic]",
                             modifier = Modifier.weight(1f),
                             fontSize = 13.sp,
+                            color = Color(0xFFE2E8F0),
                         )
-                        Icon(Icons.Default.KeyboardArrowDown, null)
+                        Icon(Icons.Default.KeyboardArrowDown, null, tint = Color(0xFF94A3B8))
                     }
                 }
                 DropdownMenu(
@@ -848,37 +897,31 @@ private fun CustomProvidersSection(
                     )
                 }
             }
+            Spacer(Modifier.height(16.dp))
+
+            // =========================================================================
+            // 3. KHUNG MODEL LIST (CHỮ ĐẬM, BADGE VISION, TEST PING, SỬA, XÓA)
+            // =========================================================================
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Model list", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFFF8FAFC))
+                Spacer(Modifier.width(8.dp))
+                Text("(${models.size} models)", fontSize = 12.sp, color = Color(0xFF64748B))
+            }
             Spacer(Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = customHeaders,
-                onValueChange = { customHeaders = it },
-                label = { Text("Custom Headers (tùy chọn)") },
-                placeholder = { Text("X-Custom-Auth: secret") },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp, max = 100.dp),
-            )
-            Spacer(Modifier.height(14.dp))
-
-            // =========================================================================
-            // MODEL LIST SECTION (PHOTO 1: media_1789594034957.png & PHOTO 3: media_1789594072903.png)
-            // =========================================================================
-            Text("Model list", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-            Spacer(Modifier.height(6.dp))
-
-            // Card container for models (Photo 1 & Photo 3)
             Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF0D0F18),
+                border = BorderStroke(1.dp, Color(0xFF202538)),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (models.isEmpty()) {
                         Text(
-                            "Chưa có model nào. Bấm '+ Add model' ở dưới để thêm model.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(8.dp)
+                            "Chưa có model nào. Bấm '+ Add model' ở dưới để thêm.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF64748B),
+                            modifier = Modifier.padding(8.dp),
                         )
                     } else {
                         models.forEachIndexed { index, mItem ->
@@ -887,12 +930,12 @@ private fun CustomProvidersSection(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    // Text box for model ID with badges (Photo 1, 3)
+                                    // Item Box
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.8f)),
-                                        color = MaterialTheme.colorScheme.surface,
-                                        modifier = Modifier.weight(1f).height(44.dp),
+                                        border = BorderStroke(1.dp, Color(0xFF282F45)),
+                                        color = Color(0xFF161925),
+                                        modifier = Modifier.weight(1f).height(46.dp),
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
@@ -900,23 +943,27 @@ private fun CustomProvidersSection(
                                         ) {
                                             Text(
                                                 text = mItem.id,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontFamily = FontFamily.Monospace,
+                                                color = Color(0xFFF1F5F9),
                                                 modifier = Modifier.weight(1f),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
                                             if (mItem.supportsImage) {
                                                 Surface(
-                                                    shape = RoundedCornerShape(12.dp),
-                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                                                    modifier = Modifier.padding(end = 4.dp),
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = Color(0xFF1E2638),
+                                                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                                                    modifier = Modifier.padding(end = 6.dp),
                                                 ) {
                                                     Text(
                                                         "Vision",
-                                                        fontSize = 11.sp,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        fontSize = 10.sp,
+                                                        color = Color(0xFF94A3B8),
+                                                        fontWeight = FontWeight.Medium,
+                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                                     )
                                                 }
                                             }
@@ -926,14 +973,16 @@ private fun CustomProvidersSection(
                                                 else -> "${mItem.contextWindow}"
                                             }
                                             Surface(
-                                                shape = RoundedCornerShape(12.dp),
-                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = Color(0xFF202638),
+                                                border = BorderStroke(1.dp, Color(0xFF3B4664)),
                                             ) {
                                                 Text(
                                                     ctxStr,
-                                                    fontSize = 11.sp,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    fontSize = 10.sp,
+                                                    color = Color(0xFF818CF8),
+                                                    fontWeight = FontWeight.Medium,
+                                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                                 )
                                             }
                                         }
@@ -941,45 +990,61 @@ private fun CustomProvidersSection(
 
                                     Spacer(Modifier.width(6.dp))
 
-                                    // BUTTON 1: 🔌 Plug icon (Test Connection / Ping)
+                                    // 1. TEST CONNECTION (REAL PING HTTP TO VPS)
                                     val isTestingThis = testingModelId == mItem.id
                                     IconButton(
                                         onClick = {
                                             testingModelId = mItem.id
                                             coroutineScope.launch {
-                                                // Test connection to endpoint
-                                                val hostName = baseUrl.removePrefix("https://").removePrefix("http://").substringBefore('/')
-                                                val ok = baseUrl.isNotBlank() && !baseUrl.contains("offline")
-                                                kotlinx.coroutines.delay(600)
-                                                if (baseUrl.contains("ngrok-free.dev") || !ok) {
-                                                    testResults = testResults + (mItem.id to Pair(
-                                                        false,
-                                                        "Connection failed: The endpoint $hostName is offline. (ERR_NGROK_3200)"
-                                                    ))
-                                                } else {
-                                                    testResults = testResults + (mItem.id to Pair(
-                                                        true,
-                                                        "Connection successful: Model ${mItem.id} is online and ready! Latency: 72ms"
-                                                    ))
+                                                val start = System.currentTimeMillis()
+                                                val (ok, message) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                    try {
+                                                        val trimmedBase = baseUrl.trim().trimEnd('/')
+                                                        val endpoint = if (trimmedBase.endsWith("/chat/completions")) trimmedBase else "$trimmedBase/chat/completions"
+                                                        val conn = java.net.URL(endpoint).openConnection() as java.net.HttpURLConnection
+                                                        conn.requestMethod = "POST"
+                                                        conn.connectTimeout = 10000
+                                                        conn.readTimeout = 15000
+                                                        conn.doOutput = true
+                                                        conn.setRequestProperty("Content-Type", "application/json")
+                                                        conn.setRequestProperty("Authorization", "Bearer ${apiKey.trim()}")
+                                                        val payload = JSONObject().apply {
+                                                            put("model", mItem.id)
+                                                            put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", "ping")))
+                                                            put("max_tokens", 5)
+                                                        }
+                                                        conn.outputStream.use { it.write(payload.toString().toByteArray()) }
+                                                        val code = conn.responseCode
+                                                        val latency = System.currentTimeMillis() - start
+                                                        if (code in 200..299) {
+                                                            true to "✓ Kết nối thành công! Model ${mItem.id} hoạt động hoàn hảo (HTTP 200 • ${latency}ms)"
+                                                        } else {
+                                                            val errText = (conn.errorStream ?: conn.inputStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
+                                                            false to "Lỗi kết nối (HTTP $code): ${errText.take(120)}"
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        false to "Connection failed: ${e.localizedMessage ?: "Unknown network error"}"
+                                                    }
                                                 }
+                                                testResults = testResults + (mItem.id to Pair(ok, message))
                                                 testingModelId = null
                                             }
                                         },
                                         modifier = Modifier.size(32.dp),
                                     ) {
                                         if (isTestingThis) {
-                                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color(0xFF38BDF8))
                                         } else {
                                             Icon(
                                                 Icons.Default.Refresh,
                                                 contentDescription = "Test connection",
                                                 modifier = Modifier.size(18.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                tint = Color(0xFF38BDF8),
                                             )
                                         }
                                     }
 
-                                    // BUTTON 2: ✏️ Pencil icon (Edit model)
+                                    // 2. EDIT MODEL
                                     IconButton(
                                         onClick = {
                                             editingModelItem = mItem
@@ -992,11 +1057,11 @@ private fun CustomProvidersSection(
                                             Icons.Default.Edit,
                                             contentDescription = "Edit model",
                                             modifier = Modifier.size(18.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = Color(0xFFA78BFA),
                                         )
                                     }
 
-                                    // BUTTON 3: 🗑️ Trash icon (Delete model)
+                                    // 3. DELETE MODEL
                                     IconButton(
                                         onClick = {
                                             models = models.filterIndexed { i, _ -> i != index }
@@ -1008,26 +1073,27 @@ private fun CustomProvidersSection(
                                             Icons.Default.Delete,
                                             contentDescription = "Delete model",
                                             modifier = Modifier.size(18.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = Color(0xFFF87171),
                                         )
                                     }
                                 }
 
-                                // ALERT/BANNER BOX (PHOTO 3: Red if failed, Green if success)
+                                // REAL-TIME ALERT BANNER (Green on success, Red on fail)
                                 testResults[mItem.id]?.let { res ->
                                     val (isOk, msg) = res
                                     Spacer(Modifier.height(6.dp))
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = if (isOk) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
-                                        border = BorderStroke(1.dp, if (isOk) Color(0xFFA5D6A7) else Color(0xFFFFCDD2)),
+                                        color = if (isOk) Color(0xFF064E3B) else Color(0xFF4C0519),
+                                        border = BorderStroke(1.dp, if (isOk) Color(0xFF059669) else Color(0xFFE11D48)),
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Text(
                                             text = msg,
-                                            color = if (isOk) Color(0xFF2E7D32) else Color(0xFFC62828),
+                                            color = if (isOk) Color(0xFF6EE7B7) else Color(0xFFFDA4AF),
                                             fontSize = 12.sp,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                         )
                                     }
                                 }
@@ -1041,21 +1107,43 @@ private fun CustomProvidersSection(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
-            // Button "+ Add model" (Photo 1 & Photo 3)
-            OutlinedButton(
-                onClick = {
-                    editingModelItem = null
-                    editingModelIndex = -1
-                    showAddModelDialog = true
-                },
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+            // Nút "+ Add model"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Add, null, Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("Add model", fontSize = 13.sp)
+                OutlinedButton(
+                    onClick = {
+                        editingModelItem = null
+                        editingModelIndex = -1
+                        showAddModelDialog = true
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE2E8F0)),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                ) {
+                    Icon(Icons.Default.Add, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("+ Add model", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                // Nút Khôi phục chuẩn WorkBuddy VPS2
+                TextButton(
+                    onClick = {
+                        name = "WorkBuddy VPS2"
+                        baseUrl = "http://138.2.95.239:8787/v1"
+                        apiKey = "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT"
+                        apiFormat = "OPENAI_CHAT"
+                        models = defaultWbModels
+                        testResults = emptyMap()
+                    },
+                ) {
+                    Text("↺ Khôi phục chuẩn WorkBuddy", fontSize = 12.sp, color = Color(0xFF818CF8))
+                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -1078,54 +1166,19 @@ private fun CustomProvidersSection(
                 },
                 enabled = canAdd,
                 modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4F46E5),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFF242938),
+                    disabledContentColor = Color(0xFF64748B),
+                ),
             ) {
-                Text("Lưu cấu hình Provider", fontWeight = FontWeight.Bold)
+                Text("Lưu cấu hình Provider", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
     }
 
-    // List of existing configured custom providers
-    if (customProviders.isNotEmpty()) {
-        Spacer(Modifier.height(16.dp))
-        Text("Providers đã kích hoạt (${customProviders.size})", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Spacer(Modifier.height(8.dp))
-        customProviders.forEach { prov ->
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(prov.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { onDeleteProvider(prov.id) }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Delete, "Delete provider", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                    Text("Endpoint: ${prov.baseUrl}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Định dạng: ${prov.apiFormat} • ${prov.models.size} models", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        prov.models.forEach { m ->
-                            OutlinedButton(
-                                onClick = { onSelectModel(prov, m) },
-                                shape = RoundedCornerShape(6.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            ) {
-                                Text("Dùng: ${m.id}", fontSize = 11.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // =========================================================================
-    // MODAL DIALOG "Add model" / "Edit model" (PHOTO 2: media_1789594040094.png)
-    // =========================================================================
     if (showAddModelDialog) {
         AddOrEditModelModalDialog(
             initialModel = editingModelItem,
@@ -1156,53 +1209,61 @@ private fun AddOrEditModelModalDialog(
 ) {
     var modelId by rememberSaveable(initialModel) { mutableStateOf(initialModel?.id ?: "") }
     var contextWindow by rememberSaveable(initialModel) { mutableStateOf((initialModel?.contextWindow ?: 1000000).toString()) }
-    var maxOutputTokens by rememberSaveable(initialModel) { mutableStateOf((initialModel?.maxOutputTokens ?: 128000).toString()) }
-    var supportsImage by rememberSaveable(initialModel) { mutableStateOf(initialModel?.supportsImage ?: false) }
+    var maxOutputTokens by rememberSaveable(initialModel) { mutableStateOf((initialModel?.maxOutputTokens ?: 64000).toString()) }
+    var supportsImage by rememberSaveable(initialModel) { mutableStateOf(initialModel?.supportsImage ?: true) }
     var supportsVideo by rememberSaveable(initialModel) { mutableStateOf(initialModel?.supportsVideo ?: false) }
     var supportsPdf by rememberSaveable(initialModel) { mutableStateOf(initialModel?.supportsPdf ?: false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 8.dp,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            shape = RoundedCornerShape(18.dp),
+            color = Color(0xFF161926),
+            border = BorderStroke(1.dp, Color(0xFF2D354D)),
+            shadowElevation = 12.dp,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                // Header (Photo 2)
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        if (initialModel != null) "Edit model" else "Add model",
+                        if (initialModel != null) "Chỉnh sửa model" else "Thêm model mới (Add model)",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
+                        fontSize = 17.sp,
+                        color = Color(0xFFF8FAFC),
                     )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(18.dp))
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(18.dp), tint = Color(0xFF94A3B8))
                     }
                 }
 
                 Spacer(Modifier.height(14.dp))
 
                 // Model ID
-                Text("Model ID", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Model ID", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
                 Spacer(Modifier.height(4.dp))
                 OutlinedTextField(
                     value = modelId,
                     onValueChange = { modelId = it },
-                    placeholder = { Text("Model ID", color = Color.LightGray) },
+                    placeholder = { Text("hy4-preview-f", color = Color(0xFF64748B)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF6366F1),
+                        unfocusedBorderColor = Color(0xFF2D354D),
+                        focusedTextColor = Color(0xFFF8FAFC),
+                        unfocusedTextColor = Color(0xFFE2E8F0),
+                    ),
                 )
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
 
                 // Context window
-                Text("Context window", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Context window (độ dài ngữ cảnh)", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
                 Spacer(Modifier.height(4.dp))
                 OutlinedTextField(
                     value = contextWindow,
@@ -1210,12 +1271,18 @@ private fun AddOrEditModelModalDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF6366F1),
+                        unfocusedBorderColor = Color(0xFF2D354D),
+                        focusedTextColor = Color(0xFFF8FAFC),
+                        unfocusedTextColor = Color(0xFFE2E8F0),
+                    ),
                 )
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
 
                 // Max output tokens
-                Text("Max output tokens", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Max output tokens", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
                 Spacer(Modifier.height(4.dp))
                 OutlinedTextField(
                     value = maxOutputTokens,
@@ -1223,12 +1290,18 @@ private fun AddOrEditModelModalDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF6366F1),
+                        unfocusedBorderColor = Color(0xFF2D354D),
+                        focusedTextColor = Color(0xFFF8FAFC),
+                        unfocusedTextColor = Color(0xFFE2E8F0),
+                    ),
                 )
 
                 Spacer(Modifier.height(14.dp))
 
-                // Input types (Photo 2)
-                Text("Input types", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Input types (Checkboxes)
+                Text("Input types (Đầu vào)", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
                 Spacer(Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1236,112 +1309,118 @@ private fun AddOrEditModelModalDialog(
                 ) {
                     // Text (locked)
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, Color(0xFF334155)),
+                        color = Color(0xFF1E2436),
                     ) {
                         Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Check, null, modifier = Modifier.size(13.dp), tint = Color(0xFF34D399))
                             Spacer(Modifier.width(4.dp))
-                            Text("Text 🔒", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("Text 🔒", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFFE2E8F0))
                         }
                     }
 
                     // Image
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, if (supportsImage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-                        color = if (supportsImage) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, if (supportsImage) Color(0xFF6366F1) else Color(0xFF334155)),
+                        color = if (supportsImage) Color(0xFF232742) else Color(0xFF12141F),
                         modifier = Modifier.clickable { supportsImage = !supportsImage },
                     ) {
                         Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (supportsImage) Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(4.dp))
-                            Text("Image", fontSize = 12.sp)
+                            if (supportsImage) {
+                                Icon(Icons.Default.Check, null, modifier = Modifier.size(13.dp), tint = Color(0xFF818CF8))
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text("Image", fontSize = 11.sp, color = if (supportsImage) Color(0xFFC7D2FE) else Color(0xFF94A3B8))
                         }
                     }
 
                     // Video
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, if (supportsVideo) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-                        color = if (supportsVideo) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, if (supportsVideo) Color(0xFF6366F1) else Color(0xFF334155)),
+                        color = if (supportsVideo) Color(0xFF232742) else Color(0xFF12141F),
                         modifier = Modifier.clickable { supportsVideo = !supportsVideo },
                     ) {
                         Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (supportsVideo) Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(4.dp))
-                            Text("Video", fontSize = 12.sp)
+                            if (supportsVideo) {
+                                Icon(Icons.Default.Check, null, modifier = Modifier.size(13.dp), tint = Color(0xFF818CF8))
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text("Video", fontSize = 11.sp, color = if (supportsVideo) Color(0xFFC7D2FE) else Color(0xFF94A3B8))
                         }
                     }
 
                     // PDF
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, if (supportsPdf) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
-                        color = if (supportsPdf) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, if (supportsPdf) Color(0xFF6366F1) else Color(0xFF334155)),
+                        color = if (supportsPdf) Color(0xFF232742) else Color(0xFF12141F),
                         modifier = Modifier.clickable { supportsPdf = !supportsPdf },
                     ) {
                         Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (supportsPdf) Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(4.dp))
-                            Text("PDF", fontSize = 12.sp)
+                            if (supportsPdf) {
+                                Icon(Icons.Default.Check, null, modifier = Modifier.size(13.dp), tint = Color(0xFF818CF8))
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text("PDF", fontSize = 11.sp, color = if (supportsPdf) Color(0xFFC7D2FE) else Color(0xFF94A3B8))
                         }
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
 
-                // Output types (Photo 2)
-                Text("Output types", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Output types
+                Text("Output types (Đầu ra)", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF94A3B8))
                 Spacer(Modifier.height(6.dp))
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(6.dp),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    color = Color(0xFF1E2436),
                 ) {
                     Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(13.dp), tint = Color(0xFF34D399))
                         Spacer(Modifier.width(4.dp))
-                        Text("Text 🔒", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("Text 🔒", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFFE2E8F0))
                     }
                 }
 
                 Spacer(Modifier.height(20.dp))
 
-                // Buttons: Cancel & Save (Photo 2)
+                // Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.padding(end = 8.dp),
-                    ) {
-                        Text("Cancel", color = MaterialTheme.colorScheme.onSurface)
+                    TextButton(onClick = onDismiss) {
+                        Text("Hủy (Cancel)", color = Color(0xFF94A3B8))
                     }
-
+                    Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = {
                             if (modelId.isNotBlank()) {
-                                val item = CustomModelItem(
-                                    id = modelId.trim(),
-                                    contextWindow = contextWindow.toIntOrNull() ?: 1000000,
-                                    maxOutputTokens = maxOutputTokens.toIntOrNull() ?: 128000,
-                                    supportsImage = supportsImage,
-                                    supportsVideo = supportsVideo,
-                                    supportsPdf = supportsPdf,
+                                onSave(
+                                    CustomModelItem(
+                                        id = modelId.trim(),
+                                        contextWindow = contextWindow.toIntOrNull() ?: 1000000,
+                                        maxOutputTokens = maxOutputTokens.toIntOrNull() ?: 64000,
+                                        supportsImage = supportsImage,
+                                        supportsVideo = supportsVideo,
+                                        supportsPdf = supportsPdf,
+                                    )
                                 )
-                                onSave(item)
                             }
                         },
                         enabled = modelId.isNotBlank(),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black, contentColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4F46E5),
+                            contentColor = Color.White,
+                        ),
                     ) {
-                        Text("Save", fontWeight = FontWeight.Bold)
+                        Text("Lưu model (Save)", fontWeight = FontWeight.Bold)
                     }
                 }
             }
