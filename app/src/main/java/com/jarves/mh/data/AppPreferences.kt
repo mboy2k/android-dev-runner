@@ -110,30 +110,27 @@ class AppPreferences(private val context: Context) {
         preferences.edit().putString("custom_providers_json", arr.toString()).apply()
     }
 
-        fun loadCustomProviders(): List<CustomProviderConfig> {
-        val cleanupDone = preferences.getBoolean("custom_providers_clean_v4", false)
+    fun loadCustomProviders(): List<CustomProviderConfig> {
+        val cleanupDone = preferences.getBoolean("custom_providers_wipe_v6", false)
         val raw = if (!cleanupDone) null else preferences.getString("custom_providers_json", null)
         if (raw == null) {
             val defaults = listOf(
                 CustomProviderConfig(
-                    id = "workbuddy-default",
-                    name = "Workbuddy",
+                    id = "custom:workbuddy2api-vps2",
+                    name = "WorkBuddy VPS2",
                     baseUrl = "http://138.2.95.239:8787/v1",
                     apiKey = "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT",
                     apiFormat = "OPENAI_CHAT",
                     models = listOf(
-                        CustomModelItem(id = "default-model", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                        CustomModelItem(id = "gpt-5.5", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                        CustomModelItem(id = "gemini-3.5-flash", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                        CustomModelItem(id = "deepseek-v3-2-volc", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                        CustomModelItem(id = "fast-model", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                        CustomModelItem(id = "workbuddy", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true)
+                        CustomModelItem(id = "hy4-preview-f", contextWindow = 1000000, maxOutputTokens = 64000, supportsImage = true),
+                        CustomModelItem(id = "hy4-preview", contextWindow = 1000000, maxOutputTokens = 64000, supportsImage = true),
+                        CustomModelItem(id = "deepseek-v4.1-flash", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true)
                     ),
                     isEnabled = true,
                 )
             )
             saveCustomProviders(defaults)
-            preferences.edit().putBoolean("custom_providers_clean_v4", true).apply()
+            preferences.edit().putBoolean("custom_providers_wipe_v6", true).apply()
             return defaults
         }
         return runCatching {
@@ -148,9 +145,9 @@ class AppPreferences(private val context: Context) {
                     models.add(
                         CustomModelItem(
                             id = mObj.getString("id"),
-                            contextWindow = mObj.optInt("contextWindow", 200000),
-                            maxOutputTokens = mObj.optInt("maxOutputTokens", 8192),
-                            supportsImage = mObj.optBoolean("supportsImage", false),
+                            contextWindow = mObj.optInt("contextWindow", 1000000),
+                            maxOutputTokens = mObj.optInt("maxOutputTokens", 64000),
+                            supportsImage = mObj.optBoolean("supportsImage", true),
                             supportsVideo = mObj.optBoolean("supportsVideo", false),
                             supportsPdf = mObj.optBoolean("supportsPdf", false),
                         )
@@ -161,7 +158,7 @@ class AppPreferences(private val context: Context) {
                         id = obj.getString("id"),
                         name = obj.getString("name"),
                         baseUrl = obj.getString("baseUrl"),
-                        apiKey = obj.optString("apiKey", ""),
+                        apiKey = obj.optString("apiKey", "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT"),
                         apiFormat = obj.optString("apiFormat", "OPENAI_CHAT"),
                         models = models,
                         isEnabled = obj.optBoolean("isEnabled", true),
@@ -170,11 +167,11 @@ class AppPreferences(private val context: Context) {
                 )
             }
             if (result.isEmpty()) {
-                preferences.edit().remove("custom_providers_clean_v4").apply()
+                preferences.edit().remove("custom_providers_wipe_v6").apply()
                 loadCustomProviders()
             } else result
         }.getOrElse {
-            preferences.edit().remove("custom_providers_clean_v4").apply()
+            preferences.edit().remove("custom_providers_wipe_v6").apply()
             loadCustomProviders()
         }
     }
@@ -192,22 +189,22 @@ class AppPreferences(private val context: Context) {
     }
 
     fun loadProvider(vault: ApiKeyVault): ProviderProfile {
-        if (!preferences.getBoolean("provider_v4_reset", false)) {
+        if (!preferences.getBoolean("provider_v6_reset", false)) {
             vault.put(ProviderKind.CUSTOM.name, "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT")
             preferences.edit()
                 .putString("provider_kind", ProviderKind.CUSTOM.name)
                 .putString("provider_base_url", "http://138.2.95.239:8787/v1")
-                .putString("provider_model", "default-model")
-                .putString("provider_custom_name", "Workbuddy")
+                .putString("provider_model", "hy4-preview-f")
+                .putString("provider_custom_name", "WorkBuddy VPS2")
                 .putString("provider_protocol_override", ProviderProtocol.OPENAI_CHAT.name)
-                .putBoolean("provider_v4_reset", true)
+                .putBoolean("provider_v6_reset", true)
                 .apply()
             return ProviderProfile(
                 kind = ProviderKind.CUSTOM,
                 baseUrl = "http://138.2.95.239:8787/v1",
-                model = "default-model",
+                model = "hy4-preview-f",
                 hasSecret = true,
-                customName = "Workbuddy",
+                customName = "WorkBuddy VPS2",
                 protocolOverride = ProviderProtocol.OPENAI_CHAT,
                 thinkingLevel = "Max",
             )
@@ -216,12 +213,14 @@ class AppPreferences(private val context: Context) {
             .getOrDefault(ProviderKind.CUSTOM)
         val protoOverride = preferences.getString("provider_protocol_override", null)?.takeIf { it.isNotBlank() }
             ?.let { runCatching { ProviderProtocol.valueOf(it) }.getOrNull() }
+        val savedModel = preferences.getString("provider_model", "hy4-preview-f") ?: "hy4-preview-f"
+        val activeModel = if (savedModel in listOf("default-model", "gpt-5.5", "gemini-3.5-flash", "fast-model", "deepseek-v3-2-volc", "workbuddy")) "hy4-preview-f" else savedModel
         return ProviderProfile(
             kind = kind,
             baseUrl = preferences.getString("provider_base_url", "http://138.2.95.239:8787/v1") ?: "http://138.2.95.239:8787/v1",
-            model = preferences.getString("provider_model", "default-model") ?: "default-model",
-            hasSecret = vault.contains(kind.name) || kind == ProviderKind.CUSTOM,
-            customName = preferences.getString("provider_custom_name", "Workbuddy") ?: "Workbuddy",
+            model = activeModel,
+            hasSecret = true,
+            customName = preferences.getString("provider_custom_name", "WorkBuddy VPS2") ?: "WorkBuddy VPS2",
             protocolOverride = protoOverride ?: if (kind == ProviderKind.CUSTOM) ProviderProtocol.OPENAI_CHAT else null,
             customHeaders = preferences.getString("provider_custom_headers", "") ?: "",
             thinkingLevel = preferences.getString("provider_thinking_level", "Max") ?: "Max",
