@@ -110,145 +110,30 @@ class AppPreferences(private val context: Context) {
         preferences.edit().putString("custom_providers_json", arr.toString()).apply()
     }
 
-    fun loadCustomProviders(): List<CustomProviderConfig> {
-        val raw = preferences.getString("custom_providers_json", null)
+        fun loadCustomProviders(): List<CustomProviderConfig> {
+        val cleanupDone = preferences.getBoolean("custom_providers_clean_v4", false)
+        val raw = if (!cleanupDone) null else preferences.getString("custom_providers_json", null)
         if (raw == null) {
             val defaults = listOf(
                 CustomProviderConfig(
-                    id = "hy4-default",
-                    name = "hy4-preview-f",
+                    id = "workbuddy-default",
+                    name = "Workbuddy",
                     baseUrl = "http://138.2.95.239:8787/v1",
                     apiKey = "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT",
                     apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "deepseek-v4.1-flash")),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "opencode-zen",
-                    name = "OpenCode Zen",
-                    baseUrl = "http://161.118.232.82:8000/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
                     models = listOf(
-                        CustomModelItem(id = "muse-spark-1.3-free", supportsImage = true),
-                        CustomModelItem(id = "muse-spark-1.2-free", supportsImage = true)
+                        CustomModelItem(id = "default-model", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                        CustomModelItem(id = "gpt-5.5", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                        CustomModelItem(id = "gemini-3.5-flash", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                        CustomModelItem(id = "deepseek-v3-2-volc", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                        CustomModelItem(id = "fast-model", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                        CustomModelItem(id = "workbuddy", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true)
                     ),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "antigravity-pro",
-                    name = "Antigravity Pro (2 Accounts)",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(
-                        CustomModelItem(id = "gemini-3.8-flash-high"),
-                        CustomModelItem(id = "gemini-3.5-pro", supportsImage = true),
-                        CustomModelItem(id = "claude-3-7-sonnet")
-                    ),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "chatgpt",
-                    name = "ChatGPT",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(
-                        CustomModelItem(id = "gpt-5.6-sol", supportsImage = true),
-                        CustomModelItem(id = "gpt-5.6-terra", supportsImage = true),
-                        CustomModelItem(id = "gpt-5.6-luna", supportsImage = true),
-                        CustomModelItem(id = "gpt-6-astra", supportsImage = true)
-                    ),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "mboy2k",
-                    name = "mboy2k",
-                    baseUrl = "http://138.2.95.239:8787/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "mboy2k-agent-v1")),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "workbuddy",
-                    name = "WorkBuddy",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "workbuddy-core")),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "xiaomi-mimo",
-                    name = "Xiaomi MiMo AI (9Router Gateway)",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "mimo-x-pro-preview")),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "freebuff",
-                    name = "Freebuff (qua Shim)",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "freebuff-sonnet-3.7")),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "kiraai",
-                    name = "KiraAI",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(
-                        CustomModelItem(id = "minimax-m3"),
-                        CustomModelItem(id = "deepseek-v4-flash"),
-                        CustomModelItem(id = "minimax-m2.7")
-                    ),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "cline-cloud",
-                    name = "Cline Cloud (Free Models)",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "cline-sonnet-fast")),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "cavoti",
-                    name = "Cavoti",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "cavoti-deepseek-r1")),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "freecode",
-                    name = "Freecode (Gemini 3.7 Flash)",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "gemini-3.7-flash")),
-                    isEnabled = true,
-                ),
-                CustomProviderConfig(
-                    id = "qwen38",
-                    name = "Qwen3.8 GSQ-RCO",
-                    baseUrl = "https://api.openai.com/v1",
-                    apiKey = "",
-                    apiFormat = "OPENAI_CHAT",
-                    models = listOf(CustomModelItem(id = "qwen-3.8-gsq-rco")),
                     isEnabled = true,
                 )
             )
             saveCustomProviders(defaults)
+            preferences.edit().putBoolean("custom_providers_clean_v4", true).apply()
             return defaults
         }
         return runCatching {
@@ -260,52 +145,59 @@ class AppPreferences(private val context: Context) {
                 val models = mutableListOf<CustomModelItem>()
                 for (j in 0 until mArr.length()) {
                     val mObj = mArr.getJSONObject(j)
-                    models += CustomModelItem(
-                        id = mObj.getString("id"),
-                        contextWindow = mObj.optInt("contextWindow", 1000000),
-                        maxOutputTokens = mObj.optInt("maxOutputTokens", 128000),
-                        supportsImage = mObj.optBoolean("supportsImage", false),
-                        supportsVideo = mObj.optBoolean("supportsVideo", false),
-                        supportsPdf = mObj.optBoolean("supportsPdf", false)
+                    models.add(
+                        CustomModelItem(
+                            id = mObj.getString("id"),
+                            contextWindow = mObj.optInt("contextWindow", 200000),
+                            maxOutputTokens = mObj.optInt("maxOutputTokens", 8192),
+                            supportsImage = mObj.optBoolean("supportsImage", false),
+                            supportsVideo = mObj.optBoolean("supportsVideo", false),
+                            supportsPdf = mObj.optBoolean("supportsPdf", false),
+                        )
                     )
                 }
-                result += CustomProviderConfig(
-                    id = obj.optString("id", UUID.randomUUID().toString()),
-                    name = obj.optString("name", ""),
-                    baseUrl = obj.optString("baseUrl", ""),
-                    apiKey = obj.optString("apiKey", ""),
-                    apiFormat = obj.optString("apiFormat", "OPENAI_CHAT"),
-                    models = models,
-                    customHeaders = obj.optString("customHeaders", "")
+                result.add(
+                    CustomProviderConfig(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        baseUrl = obj.getString("baseUrl"),
+                        apiKey = obj.optString("apiKey", ""),
+                        apiFormat = obj.optString("apiFormat", "OPENAI_CHAT"),
+                        models = models,
+                        isEnabled = obj.optBoolean("isEnabled", true),
+                        customHeaders = obj.optString("customHeaders", ""),
+                    )
                 )
             }
-            result
-        }.getOrDefault(emptyList())
-    }
-
-    fun saveProvider(profile: ProviderProfile) {
-        preferences.edit()
-            .putString("provider_kind", profile.kind.name)
-            .putString("provider_base_url", profile.baseUrl)
-            .putString("provider_model", profile.model)
-            .putString("provider_custom_name", profile.customName)
-            .putString("provider_protocol_override", profile.protocolOverride?.name ?: "")
-            .putString("provider_custom_headers", profile.customHeaders)
-            .putString("provider_thinking_level", profile.thinkingLevel)
-            .apply()
+            if (result.isEmpty()) {
+                preferences.edit().remove("custom_providers_clean_v4").apply()
+                loadCustomProviders()
+            } else result
+        }.getOrElse {
+            preferences.edit().remove("custom_providers_clean_v4").apply()
+            loadCustomProviders()
+        }
     }
 
     fun loadProvider(vault: ApiKeyVault): ProviderProfile {
-        if (!preferences.contains("provider_base_url")) {
+        if (!preferences.getBoolean("provider_v4_reset", false)) {
             vault.put(ProviderKind.CUSTOM.name, "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT")
+            preferences.edit()
+                .putString("provider_kind", ProviderKind.CUSTOM.name)
+                .putString("provider_base_url", "http://138.2.95.239:8787/v1")
+                .putString("provider_model", "default-model")
+                .putString("provider_custom_name", "Workbuddy")
+                .putString("provider_protocol_override", ProviderProtocol.OPENAI_CHAT.name)
+                .putBoolean("provider_v4_reset", true)
+                .apply()
             return ProviderProfile(
                 kind = ProviderKind.CUSTOM,
                 baseUrl = "http://138.2.95.239:8787/v1",
-                model = "deepseek-v4.1-flash",
+                model = "default-model",
                 hasSecret = true,
-                customName = "hy4-preview-f",
+                customName = "Workbuddy",
                 protocolOverride = ProviderProtocol.OPENAI_CHAT,
-                thinkingLevel = "High",
+                thinkingLevel = "Max",
             )
         }
         val kind = runCatching { ProviderKind.valueOf(preferences.getString("provider_kind", null).orEmpty()) }
@@ -315,16 +207,16 @@ class AppPreferences(private val context: Context) {
         return ProviderProfile(
             kind = kind,
             baseUrl = preferences.getString("provider_base_url", "http://138.2.95.239:8787/v1") ?: "http://138.2.95.239:8787/v1",
-            model = preferences.getString("provider_model", "deepseek-v4.1-flash") ?: "deepseek-v4.1-flash",
+            model = preferences.getString("provider_model", "default-model") ?: "default-model",
             hasSecret = vault.contains(kind.name) || kind == ProviderKind.CUSTOM,
-            customName = preferences.getString("provider_custom_name", "hy4-preview-f") ?: "hy4-preview-f",
+            customName = preferences.getString("provider_custom_name", "Workbuddy") ?: "Workbuddy",
             protocolOverride = protoOverride ?: if (kind == ProviderKind.CUSTOM) ProviderProtocol.OPENAI_CHAT else null,
             customHeaders = preferences.getString("provider_custom_headers", "") ?: "",
-            thinkingLevel = preferences.getString("provider_thinking_level", "High") ?: "High",
+            thinkingLevel = preferences.getString("provider_thinking_level", "Max") ?: "Max",
         )
     }
 
-    fun saveProjects(projects: List<Project>) {
+fun saveProjects(projects: List<Project>) {
         val arr = JSONArray()
         projects.forEach { p ->
             arr.put(JSONObject().apply {
