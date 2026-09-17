@@ -212,6 +212,7 @@ class ClaudeRuntimeBridge(
                 command,
                 guestWorkspacePath = guestWorkspacePath,
             )
+            runCatching { process.outputStream.close() }
             activeProcess = process
             if (userStopRequested) process.destroy()
             coroutineScope {
@@ -246,7 +247,9 @@ class ClaudeRuntimeBridge(
                                     throw ProviderSessionException(reason)
                                 }
                                 if (!consumeClaudeEvent(sessionId, line)) {
-                                    lastDiagnostic = line.takeLast(500)
+                                    if (!line.contains("no stdin data received", ignoreCase = true)) {
+                                        lastDiagnostic = line.takeLast(500)
+                                    }
                                     terminalStatus(line)?.let { (title, detail) ->
                                         eventBus.emit(RuntimeEvent.RuntimeLog(sessionId, title, detail))
                                     }
@@ -258,7 +261,9 @@ class ClaudeRuntimeBridge(
                 }
                 pendingOutput.toString().trim().takeIf(String::isNotBlank)?.let { line ->
                     Log.d("ClaudeBridge", "TRAILING OUTPUT: $line")
-                    if (!consumeClaudeEvent(sessionId, line)) lastDiagnostic = line.takeLast(500)
+                    if (!consumeClaudeEvent(sessionId, line) && !line.contains("no stdin data received", ignoreCase = true)) {
+                        lastDiagnostic = line.takeLast(500)
+                    }
                 }
                 val exit = process.waitFor()
                 Log.d("ClaudeBridge", "Process exited with code $exit")
@@ -285,7 +290,16 @@ class ClaudeRuntimeBridge(
                     )
                 } else {
                     if (userStopRequested) throw ProviderSessionException("Stopped by user")
-                    error(lastDiagnostic.ifBlank { "Claude Code stopped with exit code $exit" })
+                    val errorMsg = when {
+                        lastDiagnostic.contains("404", ignoreCase = true) || lastDiagnostic.contains("not found", ignoreCase = true) ->
+                            "Không thể kết nối đến máy chủ AI (HTTP 404 / Model không tồn tại). Vui lòng kiểm tra lại Base URL và Model trong Cài đặt."
+                        lastDiagnostic.contains("401", ignoreCase = true) || lastDiagnostic.contains("unauthorized", ignoreCase = true) ->
+                            "Khóa API không hợp lệ hoặc đã hết hạn (HTTP 401). Vui lòng kiểm tra lại API Key trong Cài đặt."
+                        lastDiagnostic.contains("ECONNREFUSED", ignoreCase = true) || lastDiagnostic.contains("offline", ignoreCase = true) ->
+                            "Không thể kết nối đến máy chủ AI (Máy chủ đang tắt hoặc mất mạng). Vui lòng kiểm tra kết nối mạng."
+                        else -> lastDiagnostic.ifBlank { "Tiến trình dừng đột ngột (Mã thoát: $exit)" }
+                    }
+                    error(errorMsg)
                 }
             }
         }.onFailure { error ->
