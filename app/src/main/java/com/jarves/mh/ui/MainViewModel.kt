@@ -2363,7 +2363,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createChatForProject(projectId: String) {
+    fun createChatForProject(projectId: String): com.jarves.mh.model.ProjectChat {
         val chats = preferences.loadProjectChats(projectId)
         val newChat = com.jarves.mh.model.ProjectChat(title = "New chat")
         val updated = listOf(newChat) + chats
@@ -2371,6 +2371,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (_state.value.activeProject?.id == projectId) {
             _state.update { it.copy(projectChats = updated, activeChatId = newChat.id, messages = listOf(com.jarves.mh.model.ChatMessage(fromUser = false, text = "Hi! Tell me what you want to build or change."))) }
         }
+        return newChat
+    }
+
+    fun createAndOpenChat(project: Project) {
+        val newChat = createChatForProject(project.id)
+        openProject(project, targetChatId = newChat.id)
+    }
+
+    fun sendPromptFromHome(project: Project, prompt: String) {
+        val trimmed = prompt.trim()
+        if (trimmed.isBlank()) return
+        val newChat = createChatForProject(project.id)
+        openProject(project, targetChatId = newChat.id)
+        sendPrompt(trimmed)
     }
 
     // --- SKILLS, SUBAGENTS & BRAIN SETTINGS ---
