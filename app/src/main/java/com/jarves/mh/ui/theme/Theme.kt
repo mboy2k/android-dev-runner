@@ -60,7 +60,7 @@ private val LightColors = lightColorScheme(
 enum class AppThemeMode { SYSTEM, DARK, LIGHT }
 
 @Composable
-fun PocketTheme(themeMode: AppThemeMode = AppThemeMode.SYSTEM, content: @Composable () -> Unit) {
+fun PocketTheme(themeMode: AppThemeMode = AppThemeMode.DARK, content: @Composable () -> Unit) {
     val isDark = when (themeMode) {
         AppThemeMode.DARK -> true
         AppThemeMode.LIGHT -> false
