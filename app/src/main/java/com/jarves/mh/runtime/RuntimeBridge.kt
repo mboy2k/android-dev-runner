@@ -60,9 +60,12 @@ object RuntimeLaunchConfigBuilder {
             environment["ANTHROPIC_SMALL_MODEL"] = runtimeModel
             environment["ANTHROPIC_FAST_MODEL"] = runtimeModel
             environment["CLAUDE_CODE_SUBAGENT_MODEL"] = runtimeModel
-            environment["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] = "1"
+            environment["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] = "0"
             environment["CLAUDE_CODE_DISABLE_TOKEN_COUNTING"] = "1"
             environment["DISABLE_TELEMETRY"] = "1"
+            environment["CI"] = "1"
+            environment["CLAUDE_CODE_DISABLE_UPDATE_CHECK"] = "1"
+            environment["CLAUDE_DISABLE_AUTO_UPDATE"] = "1"
             if (!authToken.isNullOrBlank()) {
                 environment["ANTHROPIC_AUTH_TOKEN"] = authToken
                 if (profile.kind == com.jarves.mh.model.ProviderKind.LLM_ROUTER) {
