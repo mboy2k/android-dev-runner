@@ -52,21 +52,16 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.PowerSweep
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -292,99 +287,7 @@ fun SettingsScreenModern(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
 
-            item {
-                SettingsAccordion(
-                    title = "AI connection",
-                    subtitle = "${state.provider.model.ifBlank { "No model" }} · ${state.provider.kind.title}",
-                    icon = Icons.Default.SmartToy,
-                    expanded = expanded == SettingsSection.CONNECTION,
-                    onClick = { toggle(SettingsSection.CONNECTION) },
-                ) {
-                    ConnectionSettings(
-                        state = state,
-                        selectedKind = selectedKind,
-                        baseUrl = baseUrl,
-                        model = model,
-                        apiKey = apiKey,
-                        keyVisible = keyVisible,
-                        models = models,
-                        isDiscovering = isDiscovering,
-                        isValidating = isValidating,
-                        status = status,
-                        statusOk = statusOk,
-                        onPing = onPing,
-                        onProvider = { kind ->
-                            selectedKind = kind
-                            baseUrl = kind.defaultBaseUrl
-                            model = kind.defaultModel
-                            apiKey = getSavedApiKey(kind)
-                            models = emptyList()
-                            status = null
-                        },
-                        onBaseUrl = { baseUrl = it; models = emptyList(); status = null },
-                        onModel = { model = it; status = null },
-                        onApiKey = { apiKey = it; status = null },
-                        onToggleKey = { keyVisible = !keyVisible },
-                        onModels = { if (models.isEmpty()) discoverModels() else showModels = true },
-                        onValidate = {
-                            scope.launch {
-                                isValidating = true
-                                status = "Checking connection…"
-                                statusOk = true
-                                val profile = ProviderProfile(selectedKind, baseUrl.trim(), model.trim())
-                                when (val result = onValidateProvider(profile, apiKey.trim(), models)) {
-                                    is ConnectionValidation.Success -> {
-                                        status = result.message
-                                        statusOk = true
-                                        onSaveProvider(profile, apiKey.trim())
-                                    }
-                                    is ConnectionValidation.Failure -> {
-                                        status = result.message
-                                        statusOk = false
-                                    }
-                                }
-                                isValidating = false
-                            }
-                        },
-                    )
-                }
-            }
-
-            item {
-                val provCount = state.customProviders.size.coerceAtLeast(1)
-                SettingsAccordion(
-                    title = "Cấu hình Model AI (Custom Models)",
-                    subtitle = "$provCount custom provider • Mặc định: workbuddy • Uncensored Brain",
-                    icon = Icons.Default.Tune,
-                    expanded = expanded == SettingsSection.MODEL_PROVIDERS || expanded == null,
-                    onClick = { toggle(SettingsSection.MODEL_PROVIDERS) },
-                ) {
-                    CustomProvidersSection(
-                        customProviders = state.customProviders,
-                        systemPromptOverride = state.systemPromptOverride,
-                        onSaveProvider = onSaveCustomProvider,
-                        onDeleteProvider = onDeleteCustomProvider,
-                        onSelectModel = onSelectCustomModel,
-                        onSaveSystemPrompt = onSaveSystemPrompt,
-                    )
-                }
-            }
-
-            item {
-                SettingsAccordion(
-                    title = "Appearance",
-                    subtitle = when (state.themeMode) { AppThemeMode.DARK -> "Dark theme"; AppThemeMode.LIGHT -> "Light theme"; AppThemeMode.SYSTEM -> "Follow system" },
-                    icon = Icons.Default.Tune,
-                    expanded = expanded == SettingsSection.APPEARANCE,
-                    onClick = { toggle(SettingsSection.APPEARANCE) },
-                ) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ModernThemeChoice("Dark", Icons.Default.DarkMode, state.themeMode == AppThemeMode.DARK, { onSetThemeMode(AppThemeMode.DARK) }, Modifier.weight(1f))
-                        ModernThemeChoice("Light", Icons.Default.LightMode, state.themeMode == AppThemeMode.LIGHT, { onSetThemeMode(AppThemeMode.LIGHT) }, Modifier.weight(1f))
-                        ModernThemeChoice("System", Icons.Default.PhoneAndroid, state.themeMode == AppThemeMode.SYSTEM, { onSetThemeMode(AppThemeMode.SYSTEM) }, Modifier.weight(1f))
-                    }
-                }
-            }
+            
 
             item {
                 val installedCount = state.installedDevStacks.size
@@ -436,7 +339,7 @@ fun SettingsScreenModern(
                         onClick = { onClearTerminal(); terminalCleared = true },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(Icons.Default.DeleteSweep, null, Modifier.size(17.dp))
+                        Icon(Icons.Default.Delete, null, Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
                         Text(if (terminalCleared) "Terminal history cleared" else "Clear terminal history")
                     }
@@ -504,7 +407,7 @@ fun SettingsScreenModern(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.PrivacyTip,
+                        Icons.Default.Shield,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary,
@@ -656,7 +559,7 @@ private fun ConnectionSettings(
         visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         trailingIcon = {
-            IconButton(onClick = onToggleKey) { Icon(if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, "Show or hide key") }
+            IconButton(onClick = onToggleKey) { Icon(if (keyVisible) Icons.Default.Preview else Icons.Default.Key, "Show or hide key") }
         },
         modifier = Modifier.fillMaxWidth(),
     )
@@ -722,7 +625,7 @@ private fun DebugUpdateChannelSection(
     SettingsAccordion(
         title = "Update channel",
         subtitle = if (isOverridden) "Overridden · debug only" else "Default GitHub release",
-        icon = Icons.Default.Tune,
+        icon = Icons.Default.Settings,
         expanded = expanded,
         onClick = { expanded = !expanded },
     ) {
@@ -876,7 +779,7 @@ private fun CustomProvidersSection(
                 visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { keyVisible = !keyVisible }) {
-                        Icon(if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, null)
+                        Icon(if (keyVisible) Icons.Default.Preview else Icons.Default.Key, null)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -1047,7 +950,7 @@ private fun CustomProvidersSection(
                                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                                         } else {
                                             Icon(
-                                                Icons.Default.Power,
+                                                Icons.Default.Refresh,
                                                 contentDescription = "Test connection",
                                                 modifier = Modifier.size(18.dp),
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
