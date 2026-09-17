@@ -73,6 +73,8 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Description
@@ -1533,7 +1535,7 @@ private fun RootScreenHost(
                     liveOutput = terminalLiveOutput,
                     currentCommand = terminalCurrentCommand,
                 )
-                RootScreen.SETTINGS -> SettingsScreen(
+                RootScreen.SETTINGS -> SettingsScreenModern(
                     state = state,
                     onSaveProvider = { profile, key ->
                         viewModel.updateProvider(profile, key)
@@ -2220,7 +2222,7 @@ private fun ProjectsScreen(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "Quick project",
+                            text = "Dự án nhanh",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                             maxLines = 1,
@@ -2240,7 +2242,7 @@ private fun ProjectsScreen(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "New project",
+                            text = "Tạo dự án mới",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
                             maxLines = 1,
@@ -2280,7 +2282,7 @@ private fun ProjectsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Repositories", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Danh mục dự án", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     }
                     Text("${projects.size} projects", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -3464,6 +3466,7 @@ private fun ChatTab(
         onDispose { view.keepScreenOn = false }
     }
     var prompt by rememberSaveable { mutableStateOf("") }
+    var isGoalMode by rememberSaveable { mutableStateOf(false) }
     val chatScope = rememberCoroutineScope()
     // True while the newest item (message, live panel, or approval card) is on screen.
     val readerAtBottom by remember {
@@ -3891,7 +3894,7 @@ private fun ChatTab(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "Manage models",
+                                            text = "Quản lý Model",
                                             color = MaterialTheme.colorScheme.primary,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.SemiBold
@@ -3904,7 +3907,77 @@ private fun ChatTab(
                     }
                 }
 
-                val canSend = prompt.isNotBlank() || pendingAttachments.isNotEmpty()
+                                val showSlashSuggestions = prompt == "/" || (prompt.startsWith("/") && !prompt.contains(" ") && prompt.length <= 8)
+                if (showSlashSuggestions) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        shadowElevation = 6.dp,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) {
+                        Column(Modifier.padding(6.dp)) {
+                            // /goal command
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        isGoalMode = true
+                                        prompt = ""
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Flag, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text("/goal", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("Chế độ tự hành chuyên sâu (Autonomous Goal Mode)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            // /compact command
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onSend("/compact")
+                                        prompt = ""
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Compress, null, tint = PocketOrange, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text("/compact", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("Nén ngữ cảnh cuộc trò chuyện để tối ưu bộ nhớ", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            // /clear command
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onSend("/clear")
+                                        prompt = ""
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.DeleteSweep, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text("/clear", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("Xóa sạch lịch sử trò chuyện hiện tại", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                val canSend = prompt.isNotBlank() || isGoalMode || pendingAttachments.isNotEmpty()
 
                 Surface(
                     shape = RoundedCornerShape(26.dp),
@@ -3934,6 +4007,31 @@ private fun ChatTab(
                             )
                         }
 
+                        if (isGoalMode) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+                                modifier = Modifier.padding(bottom = 6.dp, end = 4.dp).align(Alignment.CenterVertically)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Goal", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Spacer(Modifier.width(4.dp))
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remove Goal",
+                                        modifier = Modifier.size(13.dp).clickable { isGoalMode = false },
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
                         BasicTextField(
                             value = prompt,
                             onValueChange = { prompt = it },
@@ -3952,7 +4050,7 @@ private fun ChatTab(
                                 Box(contentAlignment = Alignment.CenterStart) {
                                     if (prompt.isEmpty()) {
                                         Text(
-                                            text = "Message Claude…",
+                                            text = "Nhập tin nhắn cho ZCode…",
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 15.sp,
                                         )
@@ -3994,8 +4092,10 @@ private fun ChatTab(
                                         enabled = canSend,
                                         onClick = {
                                             if (canSend) {
-                                                onSend(prompt)
+                                                val finalMsg = if (isGoalMode) "/goal " + prompt.trim() else prompt
+                                                onSend(finalMsg)
                                                 prompt = ""
+                                                isGoalMode = false
                                             }
                                         },
                                     ),
@@ -4047,7 +4147,8 @@ private fun ClaudeActivityDisclosure(
     headline: String,
     isRunning: Boolean = false,
 ) {
-    var expandedItems by rememberSaveable { mutableStateOf(emptyList<Int>()) }
+    var expandedItems by rememberSaveable { mutableStateOf(if (isRunning) listOf(0) else emptyList<Int>()) }
+    LaunchedEffect(isRunning) { if (isRunning) expandedItems = listOf(0) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp)) {
         if (items.isEmpty()) {
             ActivitySummaryRow(
