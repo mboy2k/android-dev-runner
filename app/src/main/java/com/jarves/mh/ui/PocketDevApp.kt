@@ -1532,7 +1532,7 @@ private fun RootScreenHost(
                     listState = projectsListState,
                     onOpen = viewModel::openProject,
                     onCreate = { name, path -> viewModel.createProject(name, path) },
-                    onCreateQuickProject = viewModel::createQuickProject,
+                    onSendPromptFromHome = viewModel::sendPromptFromHome,
                     onRenameProject = viewModel::renameProject,
                     onDeleteProject = viewModel::deleteProject,
                     onSettings = { screen = RootScreen.SETTINGS },
@@ -1545,7 +1545,7 @@ private fun RootScreenHost(
                     onRestoreChat = viewModel::restoreChat,
                     onDeleteChatPermanently = viewModel::deleteChatPermanently,
                     onRenameChat = viewModel::renameChat,
-                    onCreateChatForProject = viewModel::createChatForProject,
+                    onCreateAndOpenChat = viewModel::createAndOpenChat,
                 )
                 RootScreen.TERMINAL -> TerminalScreen(
                     lines = terminalLines,
@@ -2182,7 +2182,7 @@ private fun ProjectsScreen(
     listState: LazyListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() },
     onOpen: (Project) -> Unit,
     onCreate: (String, String) -> Unit,
-    onCreateQuickProject: () -> Unit,
+    onSendPromptFromHome: (Project, String) -> Unit = { _, _ -> },
     onRenameProject: (String, String) -> Unit,
     onDeleteProject: (String) -> Unit,
     onSettings: () -> Unit,
@@ -2195,7 +2195,7 @@ private fun ProjectsScreen(
     onRestoreChat: (String, String) -> Unit = { _, _ -> },
     onDeleteChatPermanently: (String, String) -> Unit = { _, _ -> },
     onRenameChat: (String, String, String) -> Unit = { _, _, _ -> },
-    onCreateChatForProject: (String) -> Unit = {},
+    onCreateAndOpenChat: (Project) -> Unit = {},
 ) {
     var showCreate by rememberSaveable { mutableStateOf(false) }
     var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
@@ -2212,7 +2212,7 @@ private fun ProjectsScreen(
         topBar = {
             TopAppBar(
                 modifier = Modifier.padding(top = 8.dp),
-                title = { Row(verticalAlignment = Alignment.CenterVertically) { BrandMark(compact = true); Spacer(Modifier.width(9.dp)); Text("Mobile Harness", fontWeight = FontWeight.Bold) } },
+                title = { Row(verticalAlignment = Alignment.CenterVertically) { BrandMark(compact = true); Spacer(Modifier.width(9.dp)); Text("ZCode Harness", fontWeight = FontWeight.Bold) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -2228,54 +2228,142 @@ private fun ProjectsScreen(
                 Text("Chat, review changes, and preview your project.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 ApiStatusChip(state = state, onSettings = onSettings, onPing = onPing)
-                Spacer(Modifier.height(12.dp))
-                Row(
+            }
+
+            // =========================================================================
+            // KHUNG CHAT TRỰC TIẾP TRÊN HOME (THAY THẾ DỰ ÁN NHANH)
+            // =========================================================================
+            item {
+                var homePrompt by rememberSaveable { mutableStateOf("") }
+                var selectedProjectId by rememberSaveable(projects.map { it.id }.joinToString()) {
+                    mutableStateOf(projects.firstOrNull()?.id ?: "")
+                }
+                var projectDropdownExpanded by remember { mutableStateOf(false) }
+                val targetProject = projects.firstOrNull { it.id == selectedProjectId } ?: projects.firstOrNull()
+
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Button(
-                        onClick = onCreateQuickProject,
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Chat,
-                            contentDescription = null,
-                            modifier = Modifier.size(17.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = "Dự án nhanh",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            softWrap = false,
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = { showCreate = true },
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = "Tạo dự án mới",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            softWrap = false,
+                    Column(Modifier.padding(14.dp)) {
+                        // 1. PROJECT SELECTOR CHIP
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Dự án mục tiêu:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(8.dp))
+                            Box {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = PocketOrange.copy(alpha = 0.15f),
+                                    border = BorderStroke(1.dp, PocketOrange.copy(alpha = 0.5f)),
+                                    modifier = Modifier.clickable { projectDropdownExpanded = true }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Icon(Icons.Default.Folder, null, modifier = Modifier.size(15.dp), tint = PocketOrange)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = targetProject?.name ?: "Chưa có dự án",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = PocketOrange,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(Icons.Default.ArrowDropDown, null, modifier = Modifier.size(16.dp), tint = PocketOrange)
+                                    }
+                                }
+                                DropdownMenu(
+                                    expanded = projectDropdownExpanded,
+                                    onDismissRequest = { projectDropdownExpanded = false }
+                                ) {
+                                    if (projects.isEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("Chưa có dự án nào") },
+                                            onClick = { projectDropdownExpanded = false }
+                                        )
+                                    } else {
+                                        projects.forEach { p ->
+                                            DropdownMenuItem(
+                                                text = { Text(p.name, fontWeight = if (p.id == selectedProjectId) FontWeight.Bold else FontWeight.Normal) },
+                                                leadingIcon = { Icon(Icons.Default.Folder, null, tint = PocketOrange) },
+                                                onClick = {
+                                                    selectedProjectId = p.id
+                                                    projectDropdownExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                    HorizontalDivider()
+                                    DropdownMenuItem(
+                                        text = { Text("+ Tạo dự án mới...") },
+                                        leadingIcon = { Icon(Icons.Default.Add, null) },
+                                        onClick = {
+                                            projectDropdownExpanded = false
+                                            showCreate = true
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+
+                        // 2. INPUT CHAT PROMPT & SEND BUTTON
+                        OutlinedTextField(
+                            value = homePrompt,
+                            onValueChange = { homePrompt = it },
+                            placeholder = {
+                                Text(
+                                    "Giao việc hoặc hỏi AI Agent cho dự án này...",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 54.dp, max = 130.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            trailingIcon = {
+                                val canSend = homePrompt.isNotBlank() && targetProject != null
+                                IconButton(
+                                    onClick = {
+                                        if (canSend) {
+                                            val p = targetProject!!
+                                            val textToSend = homePrompt
+                                            homePrompt = ""
+                                            onSendPromptFromHome(p, textToSend)
+                                        } else if (targetProject == null) {
+                                            showCreate = true
+                                        }
+                                    },
+                                    enabled = homePrompt.isNotBlank(),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = "Gửi",
+                                        tint = if (canSend) PocketOrange else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = PocketOrange,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            )
                         )
                     }
                 }
             }
+
             state.appUpdate?.let { update ->
                 item {
                     Surface(
@@ -2290,7 +2378,7 @@ private fun ProjectsScreen(
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("Mobile Harness ${update.versionName}", fontWeight = FontWeight.Bold)
+                                Text("ZCode Harness ${update.versionName}", fontWeight = FontWeight.Bold)
                                 Text("A new update is ready", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Text("Update", color = PocketOrange, fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -2308,8 +2396,17 @@ private fun ProjectsScreen(
                         Icon(Icons.Default.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Danh mục dự án", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(6.dp))
+                        Text("(${projects.size})", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("${projects.size} projects", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(
+                        onClick = { showCreate = true },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Tạo dự án mới", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
             if (projects.isEmpty()) {
@@ -2350,7 +2447,7 @@ private fun ProjectsScreen(
                                 textAlign = TextAlign.Center,
                             )
                             Text(
-                                "Create a named project or start instantly with a Quick Project.",
+                                "Tạo một dự án mới để bắt đầu lập trình cùng AI Agent.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
@@ -2372,7 +2469,7 @@ private fun ProjectsScreen(
                         onRestoreChat = onRestoreChat,
                         onDeleteChatPermanently = onDeleteChatPermanently,
                         onRenameChat = onRenameChat,
-                        onCreateChatForProject = onCreateChatForProject,
+                        onCreateAndOpenChat = onCreateAndOpenChat,
                     )
                 }
             }
@@ -2603,7 +2700,7 @@ private fun ProjectCard(
     onRestoreChat: (String, String) -> Unit = { _, _ -> },
     onDeleteChatPermanently: (String, String) -> Unit = { _, _ -> },
     onRenameChat: (String, String, String) -> Unit = { _, _, _ -> },
-    onCreateChatForProject: (String) -> Unit = {},
+    onCreateAndOpenChat: (Project) -> Unit = {},
 ) {
     val context = LocalContext.current
     val prefs = remember { com.jarves.mh.data.AppPreferences(context) }
@@ -2617,8 +2714,9 @@ private fun ProjectCard(
     // Chat rename dialog
     var renamingChatId by remember { mutableStateOf<String?>(null) }
     var renameChatText by remember { mutableStateOf("") }
+    var chatRefreshKey by remember { mutableStateOf(0) }
 
-    val allChats = remember(project.id, isExpanded) { prefs.loadProjectChats(project.id) }
+    val allChats = remember(project.id, isExpanded, chatRefreshKey) { prefs.loadProjectChats(project.id) }
     val activeChats = allChats.filterNot { it.isArchived }
     val archivedChats = allChats.filter { it.isArchived }
 
@@ -2676,9 +2774,12 @@ private fun ProjectCard(
                         )
                     }
                 }
-                // Action: Add new chat
+                // Action: Add new chat (Tạo chat mới và mở ngay màn hình chat)
                 IconButton(
-                    onClick = { onCreateChatForProject(project.id) },
+                    onClick = {
+                        chatRefreshKey++
+                        onCreateAndOpenChat(project)
+                    },
                     modifier = Modifier.size(28.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "New Chat", modifier = Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
@@ -2724,7 +2825,7 @@ private fun ProjectCard(
                                 ) {
                                     // Pin icon toggle
                                     IconButton(
-                                        onClick = { onPinChat(project.id, chat.id, !chat.isPinned) },
+                                        onClick = { chatRefreshKey++; onPinChat(project.id, chat.id, !chat.isPinned) },
                                         modifier = Modifier.size(22.dp)
                                     ) {
                                         Text(if (chat.isPinned) "📌" else "💬", fontSize = 13.sp)
@@ -2758,7 +2859,7 @@ private fun ProjectCard(
                                     }
                                     // Archive Button
                                     IconButton(
-                                        onClick = { onArchiveChat(project.id, chat.id) },
+                                        onClick = { chatRefreshKey++; onArchiveChat(project.id, chat.id) },
                                         modifier = Modifier.size(24.dp)
                                     ) {
                                         Text("🗃️", fontSize = 13.sp)
@@ -2787,7 +2888,10 @@ private fun ProjectCard(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    renamingChatId?.let { cId -> onRenameChat(project.id, cId, renameChatText) }
+                    renamingChatId?.let { cId ->
+                        chatRefreshKey++
+                        onRenameChat(project.id, cId, renameChatText)
+                    }
                     renamingChatId = null
                 }) { Text("Lưu") }
             },
@@ -2814,13 +2918,13 @@ private fun ProjectCard(
                             ) {
                                 Text(c.title, modifier = Modifier.weight(1f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 IconButton(
-                                    onClick = { onRestoreChat(project.id, c.id) },
+                                    onClick = { chatRefreshKey++; onRestoreChat(project.id, c.id) },
                                     modifier = Modifier.size(28.dp)
                                 ) {
                                     Text("↩️", fontSize = 16.sp)
                                 }
                                 IconButton(
-                                    onClick = { onDeleteChatPermanently(project.id, c.id) },
+                                    onClick = { chatRefreshKey++; onDeleteChatPermanently(project.id, c.id) },
                                     modifier = Modifier.size(28.dp)
                                 ) {
                                     Text("🗑️", fontSize = 16.sp)
