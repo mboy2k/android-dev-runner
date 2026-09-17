@@ -70,6 +70,7 @@ class ClaudeRuntimeBridge(
     private val seenToolCalls = ConcurrentHashMap.newKeySet<String>()
     private val finishedSessions = ConcurrentHashMap.newKeySet<String>()
     private val projectRoots = ConcurrentHashMap<String, String>()
+    private val activeProcesses = ConcurrentHashMap<String, Process>()
     @Volatile private var activeProcess: Process? = null
     @Volatile private var activeSessionId: String? = null
     @Volatile private var userStopRequested: Boolean = false
@@ -112,7 +113,7 @@ class ClaudeRuntimeBridge(
         runCatching {
             RuntimeTaskController.stopAction = {
                 userStopRequested = true
-                val running = activeProcess
+                val running = activeProcesses[sessionId] ?: activeProcess
                 if (running != null) {
                     Thread {
                         running.destroy()
@@ -122,9 +123,7 @@ class ClaudeRuntimeBridge(
                 }
             }
             startForegroundRuntime(projectSlug)
-            // Setup and release checks happen once in the app-start loading flow.
-            // Sending a prompt must never perform network update checks or put setup
-            // messages into the conversation.
+            runCatching { installer.writeResolver() }
             val installed = installer.installedRuntime()
             installer.ensureSettingsAndHooks()
             val workspace = ensureWorkspace(projectId)
@@ -216,6 +215,7 @@ class ClaudeRuntimeBridge(
                 guestWorkspacePath = guestWorkspacePath,
             )
             runCatching { process.outputStream.close() }
+            activeProcesses[sessionId] = process
             activeProcess = process
             if (userStopRequested) process.destroy()
             coroutineScope {
@@ -320,9 +320,12 @@ class ClaudeRuntimeBridge(
             }
         }
         formatGateway?.close()
-        activeProcess = null
-        activeSessionId = null
-        RuntimeTaskController.stopAction = null
+        activeProcesses.remove(sessionId)
+        if (activeSessionId == sessionId) {
+            activeProcess = null
+            activeSessionId = null
+            RuntimeTaskController.stopAction = null
+        }
         sessionId
     }
 
@@ -336,11 +339,16 @@ class ClaudeRuntimeBridge(
     }
 
     override suspend fun stopSession(sessionId: String) = withContext(Dispatchers.IO) {
-        if (activeSessionId == sessionId) {
+        val proc = activeProcesses.remove(sessionId) ?: if (activeSessionId == sessionId) activeProcess else null
+        if (proc != null) {
             userStopRequested = true
-            activeProcess?.destroy()
+            proc.destroy()
             delay(500)
-            if (activeProcess?.isAlive == true) activeProcess?.destroyForcibly()
+            if (proc.isAlive) proc.destroyForcibly()
+            if (activeSessionId == sessionId) {
+                activeProcess = null
+                activeSessionId = null
+            }
             emitFailureOnce(sessionId, "Stopped by user")
         }
     }
@@ -534,7 +542,7 @@ class ClaudeRuntimeBridge(
                 // tool_use means the agent must remain active for another turn.
                 if (message.optString("stop_reason") == "end_turn") {
                     emitCompletedOnce(sessionId)
-                    terminateActiveProcessGracefully()
+                    terminateActiveProcessGracefully(sessionId)
                 }
             }
             "user" -> {
@@ -559,7 +567,7 @@ class ClaudeRuntimeBridge(
                 // Update the UI immediately instead of waiting for a PRoot/Node wrapper
                 // that may remain alive after the answer has already completed.
                 emitCompletedOnce(sessionId)
-                terminateActiveProcessGracefully()
+                terminateActiveProcessGracefully(sessionId)
             }
         }
     }
@@ -933,7 +941,7 @@ class ClaudeRuntimeBridge(
 
     private fun snapshot(root: File): Map<String, String> = root.walkTopDown()
         .filter { it.isFile && !isInternalRuntimePath(it.relativeTo(root).invariantSeparatorsPath) }
-        .associate { it.relativeTo(root).path to digest(it) }
+        .associate { it.relativeTo(root).path to "${it.lastModified()}_${it.length()}" }
 
     private fun changedFiles(root: File, before: Map<String, String>): List<String> {
         val after = snapshot(root)
@@ -942,7 +950,12 @@ class ClaudeRuntimeBridge(
 
     private fun isInternalRuntimePath(path: String): Boolean {
         val normalized = path.replace('\\', '/')
-        return normalized == ".claude" || normalized == ".claude.json" || normalized.startsWith(".claude/")
+        return normalized == ".claude" || normalized == ".claude.json" || normalized.startsWith(".claude/") ||
+            normalized == ".git" || normalized.startsWith(".git/") ||
+            normalized == "node_modules" || normalized.startsWith("node_modules/") ||
+            normalized == "build" || normalized.startsWith("build/") ||
+            normalized == ".gradle" || normalized.startsWith(".gradle/") ||
+            normalized == ".idea" || normalized.startsWith(".idea/")
     }
 
     private fun digest(file: File): String {
@@ -1015,8 +1028,8 @@ class ClaudeRuntimeBridge(
      * wrapper ignores the graceful signal. Without this, a hung wrapper would
      * block session cleanup forever after the answer was already delivered.
      */
-    private fun terminateActiveProcessGracefully() {
-        val running = activeProcess ?: return
+    private fun terminateActiveProcessGracefully(sessionId: String? = null) {
+        val running = (if (sessionId != null) activeProcesses.remove(sessionId) else null) ?: activeProcess ?: return
         Thread {
             runCatching {
                 running.destroy()
