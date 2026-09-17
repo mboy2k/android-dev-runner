@@ -47,6 +47,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
@@ -116,6 +117,7 @@ private enum class SettingsSection { MODEL_PROVIDERS, APPEARANCE, TOOLS, RUNTIME
 @Composable
 fun SettingsScreenModern(
     state: AppUiState,
+    onBack: () -> Unit = {},
     onSaveProvider: (ProviderProfile, String) -> Unit,
     onDiscoverModels: suspend (ProviderProfile, String) -> ModelDiscoveryResult,
     onValidateProvider: suspend (ProviderProfile, String, List<DiscoveredModel>) -> ConnectionValidation,
@@ -248,6 +250,11 @@ fun SettingsScreenModern(
         topBar = {
             TopAppBar(
                 modifier = Modifier.padding(top = 8.dp),
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                    }
+                },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
@@ -289,6 +296,17 @@ fun SettingsScreenModern(
         ) {
 
             
+
+            item {
+                CustomProvidersSection(
+                    customProviders = state.customProviders,
+                    systemPromptOverride = state.systemPromptOverride,
+                    onSaveProvider = onSaveCustomProvider,
+                    onDeleteProvider = onDeleteCustomProvider,
+                    onSelectModel = onSelectCustomModel,
+                    onSaveSystemPrompt = onSaveSystemPrompt,
+                )
+            }
 
             item {
                 val installedCount = state.installedDevStacks.size
@@ -686,23 +704,25 @@ private fun CustomProvidersSection(
     onSelectModel: (CustomProviderConfig, CustomModelItem) -> Unit,
     onSaveSystemPrompt: (String) -> Unit,
 ) {
-    var name by rememberSaveable { mutableStateOf(if (customProviders.isEmpty()) "Workbuddy" else "") }
-    var baseUrl by rememberSaveable { mutableStateOf(if (customProviders.isEmpty()) "https://discolor-splendor-living.ngrok-free.dev/v1" else "") }
-    var apiKey by rememberSaveable { mutableStateOf(if (customProviders.isEmpty()) "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT" else "") }
+    val activeProv = customProviders.firstOrNull()
+    var name by rememberSaveable { mutableStateOf(activeProv?.name ?: "Workbuddy") }
+    var baseUrl by rememberSaveable { mutableStateOf(activeProv?.baseUrl ?: "http://138.2.95.239:8787/v1") }
+    var apiKey by rememberSaveable { mutableStateOf(activeProv?.apiKey ?: "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT") }
     var keyVisible by rememberSaveable { mutableStateOf(false) }
-    var apiFormat by rememberSaveable { mutableStateOf("OPENAI_CHAT") }
+    var apiFormat by rememberSaveable { mutableStateOf(activeProv?.apiFormat ?: "OPENAI_CHAT") }
     var showFormatMenu by remember { mutableStateOf(false) }
-    var customHeaders by rememberSaveable { mutableStateOf("") }
+    var customHeaders by rememberSaveable { mutableStateOf(activeProv?.customHeaders ?: "") }
     var models by remember {
         mutableStateOf(
-            if (customProviders.isEmpty()) {
-                listOf(
-                    CustomModelItem(id = "workbuddy", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                    CustomModelItem(id = "deepseek-v4.1-flash", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                    CustomModelItem(id = "hy4-preview-f", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
-                    CustomModelItem(id = "hy3", contextWindow = 192000, maxOutputTokens = 128000, supportsImage = true)
-                )
-            } else listOf<CustomModelItem>()
+            if (customProviders.isNotEmpty()) customProviders.first().models
+            else listOf(
+                CustomModelItem(id = "default-model", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                CustomModelItem(id = "gpt-5.5", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                CustomModelItem(id = "gemini-3.5-flash", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                CustomModelItem(id = "deepseek-v3-2-volc", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                CustomModelItem(id = "fast-model", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true),
+                CustomModelItem(id = "workbuddy", contextWindow = 1000000, maxOutputTokens = 128000, supportsImage = true)
+            )
         )
     }
 
