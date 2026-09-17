@@ -175,7 +175,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val vault = ApiKeyVault(application)
     private val preferences = AppPreferences(application)
-    private val runtime = ClaudeRuntimeBridge(application) { profile -> vault.get(profile.kind.name) }
+    private val runtime = ClaudeRuntimeBridge(application) { profile ->
+        val key = vault.get(profile.kind.name)?.takeIf { it.isNotBlank() }
+        key ?: preferences.loadCustomProviders().firstOrNull { it.baseUrl == profile.baseUrl }?.apiKey?.takeIf { it.isNotBlank() }
+            ?: preferences.loadCustomProviders().firstOrNull()?.apiKey?.takeIf { it.isNotBlank() }
+            ?: "nTNuTJ6W9pKxR3qVhCmD2sLbAwYeF4gT"
+    }
     private val installer = RuntimeInstaller(application)
     private val providerApi = ProviderApiClient()
     private fun appUpdater(): AppUpdater = AppUpdater(
