@@ -73,8 +73,6 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Description
@@ -3928,7 +3926,7 @@ private fun ChatTab(
                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.Flag, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Column {
                                     Text("/goal", fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -3947,7 +3945,7 @@ private fun ChatTab(
                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.Compress, null, tint = PocketOrange, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Refresh, null, tint = PocketOrange, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Column {
                                     Text("/compact", fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -3966,7 +3964,7 @@ private fun ChatTab(
                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.DeleteSweep, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Column {
                                     Text("/clear", fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -4018,7 +4016,7 @@ private fun ChatTab(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                                     Spacer(Modifier.width(4.dp))
                                     Text("Goal", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                                     Spacer(Modifier.width(4.dp))
