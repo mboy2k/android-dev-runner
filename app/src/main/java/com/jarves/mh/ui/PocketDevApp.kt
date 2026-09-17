@@ -3108,7 +3108,6 @@ private fun WorkspaceScreen(
                     onSelectModel = onSelectModel,
                     onSelectThinking = onSelectThinking,
                     customProviders = state.customProviders.ifEmpty { com.jarves.mh.data.AppPreferences(context).loadCustomProviders() },
-                onManageModels = onBack,
                     onSelectCustomModel = onSelectCustomModel,
                 )
                 WorkspaceTab.FILES -> FilesTab(
