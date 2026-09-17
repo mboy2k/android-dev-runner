@@ -19,6 +19,8 @@ import com.jarves.mh.model.CustomProviderConfig
 import com.jarves.mh.model.ProviderProtocol
 
 class AppPreferences(private val context: Context) {
+    val zcodeDb: ZCodeDatabase by lazy { ZCodeDatabase(context) }
+
     private val preferences = context.getSharedPreferences("pocket_preferences", Context.MODE_PRIVATE)
 
     var onboardingComplete: Boolean
@@ -34,7 +36,16 @@ class AppPreferences(private val context: Context) {
         set(value) { preferences.edit().putBoolean("background_setup_complete", value).apply() }
 
     var themeMode: String
-        get() = preferences.getString("theme_mode", "dark") ?: "dark"
+        get() {
+            if (!preferences.getBoolean("theme_v7_dark_default", false)) {
+                preferences.edit()
+                    .putString("theme_mode", "dark")
+                    .putBoolean("theme_v7_dark_default", true)
+                    .apply()
+                return "dark"
+            }
+            return preferences.getString("theme_mode", "dark") ?: "dark"
+        }
         set(value) { preferences.edit().putString("theme_mode", value).apply() }
 
     var legacySeededCredentialRemoved: Boolean
@@ -245,6 +256,8 @@ fun saveProjects(projects: List<Project>) {
     }
 
     fun loadProjects(): List<Project> {
+        val dbProjects = zcodeDb.loadProjects()
+        if (dbProjects.isNotEmpty()) return dbProjects
         val raw = preferences.getString("projects_json", null) ?: return emptyList()
         var needsSave = false
         val list = runCatching {
@@ -315,9 +328,12 @@ fun saveProjects(projects: List<Project>) {
             })
         }
         File(projectDir, "index.json").writeText(arr.toString())
+        zcodeDb.saveProjectChats(projectId, chats)
     }
 
     fun loadProjectChats(projectId: String): List<ProjectChat> {
+        val dbChats = zcodeDb.loadProjectChats(projectId)
+        if (dbChats.isNotEmpty()) return dbChats
         val projectDir = File(chatsDir, projectId).also { it.mkdirs() }
         val index = File(projectDir, "index.json")
         if (index.exists()) {
@@ -386,6 +402,7 @@ fun saveProjects(projects: List<Project>) {
         }
         val projectDir = File(chatsDir, projectId).also { it.mkdirs() }
         File(projectDir, "$chatId.json").writeText(arr.toString())
+        zcodeDb.saveMessages(projectId, chatId, messages)
     }
 
     fun loadMessages(projectId: String, chatId: String): List<ChatMessage> {
