@@ -87,10 +87,15 @@ internal class LocalFormatGateway(
         if (source.has("temperature")) target.put("temperature", source.get("temperature"))
         
         val thinking = profile.thinkingLevel.lowercase()
-        when {
-            thinking == "low" -> target.put("reasoning_effort", "low")
-            thinking in listOf("medium") -> target.put("reasoning_effort", "medium")
-            thinking in listOf("high", "extra high", "max", "ultra") -> target.put("reasoning_effort", "high")
+        val m = profile.model.lowercase()
+        val isEffortSupported = m.contains("o1") || m.contains("o3") || m.contains("o4") || m.contains("gpt-5") || m.contains("gpt-6")
+        if (thinking !in listOf("tắt", "off", "disabled") && isEffortSupported) {
+            when {
+                thinking in listOf("low", "thấp") -> target.put("reasoning_effort", "low")
+                thinking in listOf("medium", "vừa") -> target.put("reasoning_effort", "medium")
+                thinking in listOf("ultra", "max", "xhigh") -> target.put("reasoning_effort", "high")
+                else -> target.put("reasoning_effort", "medium")
+            }
         }
 
         val rawMessages = JSONArray()
@@ -217,22 +222,18 @@ internal class LocalFormatGateway(
     private fun fromOpenAi(source: JSONObject, model: String): JSONObject {
         val message = source.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message") ?: JSONObject()
         val content = JSONArray()
-        val reasoning = message.optString("reasoning_content")
-        val text = message.optString("content")
+        val rawReasoning = if (message.isNull("reasoning_content")) "" else message.optString("reasoning_content").takeIf { it != "null" }.orEmpty()
+        val rawText = if (message.isNull("content")) "" else message.optString("content").takeIf { it != "null" }.orEmpty()
         
         // Pass real model reasoning as Anthropic thinking block so Claude Code & UI display true model thinking
-        if (reasoning.isNotBlank()) {
-            content.put(JSONObject().put("type", "thinking").put("thinking", reasoning))
+        if (rawReasoning.isNotBlank()) {
+            content.put(JSONObject().put("type", "thinking").put("thinking", rawReasoning))
         }
         
-        // Clean any stray <think> tags from text content
-        if (text.isNotBlank()) {
-            val cleanText = text.replace(Regex("(?s)<think>.*?</think>"), "").trim()
-            if (cleanText.isNotBlank()) {
-                content.put(JSONObject().put("type", "text").put("text", cleanText))
-            }
-        }
+        var cleanText = rawText.replace(Regex("(?s)<think>.*?</think>"), "").trim()
+        if (cleanText == "null") cleanText = ""
         
+        var hasToolCalls = false
         val calls = message.optJSONArray("tool_calls") ?: JSONArray()
         for (index in 0 until calls.length()) {
             val call = calls.getJSONObject(index)
@@ -242,11 +243,42 @@ internal class LocalFormatGateway(
                 .put("id", call.optString("id").ifBlank { "tool_${UUID.randomUUID()}" })
                 .put("name", function.optString("name"))
                 .put("input", arguments))
+            hasToolCalls = true
         }
+
+        // Bóc tách raw XML tool call từ các model như Hunyuan / DeepSeek (e.g. <tool_call:6124c78e>Bash...)
+        if (cleanText.contains("<tool_call:")) {
+            val toolCallRegex = Regex("(?s)<tool_call:([a-zA-Z0-9_-]+)>(.*?)(?:</tool_call:\\1>|$)")
+            val matches = toolCallRegex.findAll(cleanText).toList()
+            for (match in matches) {
+                val callId = match.groupValues[1]
+                val callBody = match.groupValues[2]
+                val toolName = callBody.substringBefore('<').trim().ifBlank { "Bash" }
+                val argsObj = JSONObject()
+                val argRegex = Regex("(?s)<arg_key:[a-zA-Z0-9_-]+>([^<]*)</arg_key:[a-zA-Z0-9_-]+>\\s*<arg_value:[a-zA-Z0-9_-]+>(.*?)</arg_value:[a-zA-Z0-9_-]+>")
+                argRegex.findAll(callBody).forEach { argMatch ->
+                    val k = argMatch.groupValues[1].trim()
+                    val v = argMatch.groupValues[2].trim()
+                    argsObj.put(k, v)
+                }
+                content.put(JSONObject().put("type", "tool_use")
+                    .put("id", callId.ifBlank { "tool_${UUID.randomUUID()}" })
+                    .put("name", toolName)
+                    .put("input", argsObj))
+                hasToolCalls = true
+            }
+            cleanText = toolCallRegex.replace(cleanText, "").trim()
+            if (cleanText == "null") cleanText = ""
+        }
+        
+        if (cleanText.isNotBlank()) {
+            content.put(JSONObject().put("type", "text").put("text", cleanText))
+        }
+        
         val usage = source.optJSONObject("usage") ?: JSONObject()
         return JSONObject().put("id", source.optString("id").ifBlank { "msg_${UUID.randomUUID()}" })
             .put("type", "message").put("role", "assistant").put("model", model)
-            .put("content", content).put("stop_reason", if (calls.length() > 0) "tool_use" else "end_turn")
+            .put("content", content).put("stop_reason", if (hasToolCalls) "tool_use" else "end_turn")
             .put("stop_sequence", JSONObject.NULL)
             .put("usage", JSONObject().put("input_tokens", usage.optInt("prompt_tokens")).put("output_tokens", usage.optInt("completion_tokens")))
     }
