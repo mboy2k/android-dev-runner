@@ -707,6 +707,7 @@ private fun CustomProvidersSection(
     onSelectModel: (CustomProviderConfig, CustomModelItem) -> Unit,
     onSaveSystemPrompt: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     val activeProv = customProviders.firstOrNull()
     var name by rememberSaveable { mutableStateOf(activeProv?.name ?: "WorkBuddy VPS2") }
     var baseUrl by rememberSaveable { mutableStateOf(activeProv?.baseUrl ?: "http://138.2.95.239:8787/v1") }
