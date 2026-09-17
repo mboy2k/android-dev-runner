@@ -221,6 +221,7 @@ fun PocketDevApp(viewModel: MainViewModel = viewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val projectsListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    var showSettingsInWorkspace by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.toastMessage) {
         state.toastMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -276,12 +277,35 @@ fun PocketDevApp(viewModel: MainViewModel = viewModel()) {
                 onToggleTheme = viewModel::toggleTheme,
                 onContinue = viewModel::finishBackgroundSetup,
             )
-        state.activeProject != null -> WorkspaceScreen(
-            state = state,
-            onSelectModel = viewModel::selectModel,
-            onSelectThinking = viewModel::selectThinkingLevel,
-            onSelectCustomModel = viewModel::selectCustomModel,
-            onBack = viewModel::closeProject,
+        state.activeProject != null -> {
+            if (showSettingsInWorkspace) {
+                SettingsScreenModern(
+                    state = state,
+                    onBack = { showSettingsInWorkspace = false },
+                    onSaveProvider = { profile, key -> viewModel.updateProvider(profile, key) },
+                    onDiscoverModels = viewModel::discoverModels,
+                    onValidateProvider = viewModel::validateProvider,
+                    onSetThemeMode = viewModel::setThemeMode,
+                    onPing = viewModel::pingApi,
+                    onClearTerminal = viewModel::clearTerminal,
+                    getSavedApiKey = viewModel::getSavedApiKey,
+                    onInstallDevStack = viewModel::installDevStack,
+                    initialDebugUpdateManifestUrl = viewModel.debugUpdateManifestUrl(),
+                    onSetDebugUpdateManifestUrl = viewModel::setDebugUpdateManifestUrl,
+                    onClearDebugUpdateManifestUrl = viewModel::clearDebugUpdateManifestUrl,
+                    onSaveCustomProvider = viewModel::saveCustomProvider,
+                    onDeleteCustomProvider = viewModel::deleteCustomProvider,
+                    onSelectCustomModel = viewModel::selectCustomModel,
+                    onSaveSystemPrompt = viewModel::saveSystemPromptOverride,
+                )
+            } else {
+                WorkspaceScreen(
+                    state = state,
+                    onOpenSettings = { showSettingsInWorkspace = true },
+                    onSelectModel = viewModel::selectModel,
+                    onSelectThinking = viewModel::selectThinkingLevel,
+                    onSelectCustomModel = viewModel::selectCustomModel,
+                    onBack = viewModel::closeProject,
             onSend = viewModel::sendPrompt,
             onStop = viewModel::stopTask,
             onApproval = viewModel::answerApproval,
@@ -310,7 +334,9 @@ fun PocketDevApp(viewModel: MainViewModel = viewModel()) {
             onRemoveAttachment = viewModel::removePendingAttachment,
             onOpenAttachment = viewModel::openChatAttachment,
             onBuildAndRunAndroid = viewModel::buildAndRunAndroidApp,
-        )
+                )
+            }
+        }
         else -> RootScreenHost(state, viewModel, projectsListState)
     }
 }
@@ -1535,6 +1561,7 @@ private fun RootScreenHost(
                 )
                 RootScreen.SETTINGS -> SettingsScreenModern(
                     state = state,
+                    onBack = { screen = RootScreen.PROJECTS },
                     onSaveProvider = { profile, key ->
                         viewModel.updateProvider(profile, key)
                     },
@@ -2816,6 +2843,7 @@ private fun ProjectCard(
 @Composable
 private fun WorkspaceScreen(
     state: AppUiState,
+    onOpenSettings: () -> Unit = {},
     onSelectThinking: (String) -> Unit = {},
     onSelectCustomModel: (com.jarves.mh.model.CustomProviderConfig, com.jarves.mh.model.CustomModelItem) -> Unit = { _, _ -> },
     onBack: () -> Unit,
@@ -3021,7 +3049,7 @@ private fun WorkspaceScreen(
                             else Icon(Icons.Default.PlayArrow, "Build and run Android app")
                         }
                     }
-                    IconButton(onClick = { onBack() }) { Icon(Icons.Default.Settings, "Cài đặt") }
+                    IconButton(onClick = onOpenSettings) { Icon(Icons.Default.Settings, "Cài đặt") }
                     IconButton(onClick = { showChats = true }) { Icon(Icons.Default.History, "Project chats") }
                     if (state.isRunning) CircularProgressIndicator(Modifier.padding(12.dp).size(20.dp), strokeWidth = 2.dp)
                 },
@@ -3061,6 +3089,7 @@ private fun WorkspaceScreen(
                     onStop,
                     onApproval,
                     listState = chatListState,
+                    onManageModels = onOpenSettings,
                     taskStartedAtMillis = state.workSegmentStartedAtMillis ?: state.taskStartedAtMillis,
                     taskFinishedAtMillis = state.taskFinishedAtMillis,
                     thinkingActive = state.liveThinking,
@@ -3595,7 +3624,7 @@ private fun ChatTab(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = "${currentProvider.customName.ifBlank { currentProvider.displayTitle }}/$currentModelLabel",
+                                text = currentModelLabel.ifBlank { "workbuddy" },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface,
