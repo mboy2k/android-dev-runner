@@ -1071,7 +1071,7 @@ printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decis
         put("Agent")
     }
 
-    private fun writeResolver() {
+    fun writeResolver() {
         val manager = context.getSystemService(ConnectivityManager::class.java)
         val dns = manager.getLinkProperties(manager.activeNetwork)?.dnsServers.orEmpty()
         val servers = dns.mapNotNull { it.hostAddress }.ifEmpty { listOf("8.8.8.8", "1.1.1.1") }
