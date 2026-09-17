@@ -3614,7 +3614,10 @@ private fun ChatTab(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(messages, key = { it.id }) { message ->
+                val visibleMessages = messages.filter { msg ->
+                    msg.workItems.isNotEmpty() || msg.workedMillis > 0L || (msg.text.trim() != "null" && (msg.text.isNotBlank() || msg.attachments.isNotEmpty()))
+                }
+                items(visibleMessages, key = { it.id }) { message ->
                     if (message.workItems.isNotEmpty() || message.workedMillis > 0L) {
                         WorkBlockCard(message)
                     } else {
@@ -3637,8 +3640,8 @@ private fun ChatTab(
             if (!readerAtBottom) {
                 Surface(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 10.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 12.dp)
                         .clickable {
                             chatScope.launch {
                                 listState.animateScrollToItem(
@@ -3647,8 +3650,9 @@ private fun ChatTab(
                             }
                         },
                     shape = CircleShape,
-                    shadowElevation = 4.dp,
+                    shadowElevation = 6.dp,
                     color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Row(
                         Modifier.padding(start = 13.dp, end = 15.dp, top = 7.dp, bottom = 7.dp),
@@ -3753,10 +3757,16 @@ private fun ChatTab(
                     val thinkingTiers = remember(currentProvider.model) {
                         val m = currentProvider.model.lowercase()
                         when {
+                            m.contains("deepseek") || m.contains("r1") || m.contains("reasoner") || m.contains("hy4-preview-f") ->
+                                listOf("Tắt", "Bật (CoT)", "Auto")
                             m.contains("gpt-5") || m.contains("gpt-6") || m.contains("o1") || m.contains("o3") || m.contains("o4") ->
-                                listOf("Low", "Medium", "High", "Ultra")
+                                listOf("Tắt", "Low", "Medium", "High", "Ultra")
+                            m.contains("claude-3-7") || m.contains("claude-4") ->
+                                listOf("Tắt", "Low", "Medium", "High", "Max")
+                            m.contains("hy4-preview") || m.contains("gpt-4o") || m.contains("claude-3-5") ->
+                                listOf("Tắt", "Bật")
                             else ->
-                                listOf("Low", "High", "Max")
+                                listOf("Tắt", "Low", "Medium", "High", "Max")
                         }
                     }
 
@@ -4279,8 +4289,7 @@ private fun ClaudeActivityDisclosure(
     headline: String,
     isRunning: Boolean = false,
 ) {
-    var expandedItems by rememberSaveable { mutableStateOf(if (isRunning) listOf(0) else emptyList<Int>()) }
-    LaunchedEffect(isRunning) { if (isRunning) expandedItems = listOf(0) }
+    var expandedItems by rememberSaveable { mutableStateOf(emptyList<Int>()) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp)) {
         if (items.isEmpty()) {
             ActivitySummaryRow(
@@ -4569,6 +4578,7 @@ private fun formatDuration(totalSeconds: Long): String = when {
 
 @Composable
 private fun MessageBubble(message: ChatMessage, onRunInTerminal: (String) -> Unit, onOpenAttachment: (ChatAttachment) -> Unit) {
+    if (message.text.trim() == "null" || (message.text.isBlank() && message.attachments.isEmpty())) return
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.fromUser) Arrangement.End else Arrangement.Start) {
         Surface(
             color = if (message.fromUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
