@@ -1256,27 +1256,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Do NOT stop active session on back - let it run in background foreground service!
         if (_state.value.projectTerminalRunning) stopProjectTerminalCommand()
 
-        if (active != null) {
-            val chats = preferences.loadProjectChats(active.id)
-            val userMessages = chats.sumOf { preferences.loadMessages(active.id, it.id).count { m -> m.fromUser } }
-            val workspaceDir = File(getApplication<Application>().filesDir, "workspaces/${active.id}")
-            val userFiles = if (workspaceDir.isDirectory) {
-                workspaceDir.walkTopDown().filter { file ->
-                    file.isFile && !file.name.startsWith(".claude") && file.name != ".pocket-dev-stacks.json"
-                }.count()
-            } else 0
-
-            if (userMessages == 0 && userFiles == 0 && !_state.value.isRunning && !_state.value.projectTerminalRunning) {
-                // Unused empty project; delete immediately so it does not clutter the project list.
-                _state.update { current -> current.copy(projects = current.projects.filterNot { it.id == active.id }) }
-                preferences.saveProjects(_state.value.projects)
-                viewModelScope.launch(Dispatchers.IO) {
-                    workspaceDir.deleteRecursively()
-                    terminalHistoryFile(active.id).delete()
-                    preferences.deleteProjectChats(active.id)
-                }
-            }
-        }
+        // Never auto-delete projects on back! Projects are safely preserved and only deleted when user explicitly clicks the delete button.
 
         _state.update {
             it.copy(
